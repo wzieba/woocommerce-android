@@ -5,14 +5,14 @@ import android.app.Instrumentation.ActivityResult
 import android.content.Intent
 import androidx.recyclerview.widget.RecyclerView
 import androidx.test.espresso.Espresso.onView
+import androidx.test.espresso.Espresso.openActionBarOverflowOrOptionsMenu
+import androidx.test.espresso.Espresso.pressBack
 import androidx.test.espresso.action.ViewActions.click
 import androidx.test.espresso.assertion.ViewAssertions.doesNotExist
 import androidx.test.espresso.assertion.ViewAssertions.matches
 import androidx.test.espresso.contrib.RecyclerViewActions
 import androidx.test.espresso.intent.Intents
-import androidx.test.espresso.intent.Intents.intended
 import androidx.test.espresso.intent.matcher.IntentMatchers
-import androidx.test.espresso.intent.matcher.IntentMatchers.hasAction
 import androidx.test.espresso.intent.matcher.IntentMatchers.hasExtra
 import androidx.test.espresso.matcher.RootMatchers.isDialog
 import androidx.test.espresso.matcher.ViewMatchers
@@ -24,13 +24,13 @@ import androidx.test.espresso.matcher.ViewMatchers.withId
 import androidx.test.espresso.matcher.ViewMatchers.withText
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.LargeTest
+import androidx.test.platform.app.InstrumentationRegistry.getInstrumentation
 import com.woocommerce.android.R
-import com.woocommerce.android.R.string
 import com.woocommerce.android.helpers.WCMatchers
-import com.woocommerce.android.helpers.WCMatchers.scrollTo
 import com.woocommerce.android.ui.TestBase
 import com.woocommerce.android.ui.main.MainActivityTestRule
 import com.woocommerce.android.ui.orders.WcOrderTestUtils
+import com.woocommerce.android.ui.products.ProductType.GROUPED
 import org.hamcrest.CoreMatchers
 import org.hamcrest.CoreMatchers.`is`
 import org.hamcrest.CoreMatchers.allOf
@@ -53,7 +53,7 @@ class ProductDetailNavigationTest : TestBase() {
     private val mockProductModel = WcProductTestUtils.generateProductDetail()
 
     private fun chooser(matcher: Matcher<Intent>): Matcher<Intent> {
-        return allOf(hasAction(Intent.ACTION_CHOOSER), hasExtra(`is`(Intent.EXTRA_INTENT), matcher))
+        return allOf(IntentMatchers.hasAction(Intent.ACTION_CHOOSER), hasExtra(`is`(Intent.EXTRA_INTENT), matcher))
     }
 
     @Before
@@ -89,7 +89,7 @@ class ProductDetailNavigationTest : TestBase() {
         activityTestRule.setOrderProductListWithMockData(mockWCOrderModel)
 
         // click on the Details button in product list card
-        onView(withId(R.id.productList_btnDetails)).perform(scrollTo(), click())
+        onView(withId(R.id.productList_btnDetails)).perform(WCMatchers.scrollTo(), click())
     }
 
     @After
@@ -111,12 +111,16 @@ class ProductDetailNavigationTest : TestBase() {
                 equalToIgnoringCase(mockProductModel.name))))
 
         // verify that close button is visible
-        onView(withContentDescription(string.abc_action_bar_up_description))
+        onView(withContentDescription(R.string.abc_action_bar_up_description))
                 .check(matches(ViewMatchers.withEffectiveVisibility(VISIBLE)))
 
+        openActionBarOverflowOrOptionsMenu(getInstrumentation().targetContext)
+
         // verify that share button is visible
-        onView(withId(R.id.menu_share))
+        onView(withText(R.string.share))
                 .check(matches(ViewMatchers.withEffectiveVisibility(VISIBLE)))
+
+        pressBack()
 
         // Clicking the "up" button in product detail screen returns the user to the product list screen.
         // The Toolbar title changes to "Order #1"
@@ -139,161 +143,12 @@ class ProductDetailNavigationTest : TestBase() {
         // since image is available, the imageView should be visible
         onView(withId(R.id.imageGallery)).check(matches(ViewMatchers.withEffectiveVisibility(VISIBLE)))
 
-        // verify that product title label is displayed correctly
-        onView(WCMatchers.matchesWithIndex(withId(R.id.textPropertyName), 0))
-                .check(matches(withText(appContext.getString(R.string.product_name))))
-
-        // verify that total orders label is displayed correctly
-        onView(WCMatchers.matchesWithIndex(withId(R.id.textPropertyName), 1))
-                .check(matches(withText(appContext.getString(R.string.product_total_orders))))
-
         // verify that review label is displayed correctly
-        onView(WCMatchers.matchesWithIndex(withId(R.id.textPropertyName), 2))
+        onView(WCMatchers.matchesWithIndex(withId(R.id.textPropertyName), 1))
                 .check(matches(withText(appContext.getString(R.string.product_reviews))))
 
         // verify that product title is displayed correctly
-        onView(WCMatchers.matchesWithIndex(withId(R.id.textPropertyValue), 0))
-                .check(matches(withText(mockProductModel.name)))
-
-        // verify that total orders is displayed correctly
-        onView(WCMatchers.matchesWithIndex(withId(R.id.textPropertyValue), 1))
-                .check(matches(withText(mockProductModel.totalSales.toString())))
-    }
-
-    @Test
-    fun verifyProductDetailTitleDisplayedCorrectlyForExternalProducts() {
-        // inject mock data to product detail
-        mockProductModel.type = ProductType.EXTERNAL.name
-        activityTestRule.setOrderProductDetailWithMockData(mockProductModel)
-
-        // click on the first item in product list page
-        onView(withId(R.id.productList_products))
-                .perform(RecyclerViewActions.actionOnItemAtPosition<RecyclerView.ViewHolder>(0, click()))
-
-        // verify that product title is displayed correctly
-        val productTitle = appContext.getString(R.string.product_name_external, mockProductModel.name)
-        onView(WCMatchers.matchesWithIndex(withId(R.id.textPropertyValue), 0))
-                .check(matches(withText(productTitle)))
-
-        // verify that toolbar title is displayed correctly
-        onView(withId(R.id.toolbar)).check(matches(WCMatchers.withToolbarTitle(equalToIgnoringCase(productTitle))))
-    }
-
-    @Test
-    fun verifyProductDetailTitleDisplayedCorrectlyForGroupedProducts() {
-        // inject mock data to product detail
-        mockProductModel.type = ProductType.GROUPED.name
-        activityTestRule.setOrderProductDetailWithMockData(mockProductModel)
-
-        // click on the first item in product list page
-        onView(withId(R.id.productList_products))
-                .perform(RecyclerViewActions.actionOnItemAtPosition<RecyclerView.ViewHolder>(0, click()))
-
-        // verify that product title is displayed correctly
-        val productTitle = appContext.getString(R.string.product_name_grouped, mockProductModel.name)
-        onView(WCMatchers.matchesWithIndex(withId(R.id.textPropertyValue), 0))
-                .check(matches(withText(productTitle)))
-
-        // verify that toolbar title is displayed correctly
-        onView(withId(R.id.toolbar)).check(matches(WCMatchers.withToolbarTitle(equalToIgnoringCase(productTitle))))
-    }
-
-    @Test
-    fun verifyProductDetailTitleDisplayedCorrectlyForVariableProducts() {
-        // inject mock data to product detail
-        mockProductModel.type = ProductType.VARIABLE.name
-        activityTestRule.setOrderProductDetailWithMockData(mockProductModel)
-
-        // click on the first item in product list page
-        onView(withId(R.id.productList_products))
-                .perform(RecyclerViewActions.actionOnItemAtPosition<RecyclerView.ViewHolder>(0, click()))
-
-        // verify that product title is displayed correctly
-        val productTitle = appContext.getString(R.string.product_name_variable, mockProductModel.name)
-        onView(WCMatchers.matchesWithIndex(withId(R.id.textPropertyValue), 0))
-                .check(matches(withText(productTitle)))
-
-        // verify that toolbar title is displayed correctly
-        onView(withId(R.id.toolbar)).check(matches(WCMatchers.withToolbarTitle(equalToIgnoringCase(productTitle))))
-    }
-
-    @Test
-    fun verifyProductDetailTitleDisplayedCorrectlyForVirtualProducts() {
-        // inject mock data to product detail
-        mockProductModel.virtual = true
-        activityTestRule.setOrderProductDetailWithMockData(mockProductModel)
-
-        // click on the first item in product list page
-        onView(withId(R.id.productList_products))
-                .perform(RecyclerViewActions.actionOnItemAtPosition<RecyclerView.ViewHolder>(0, click()))
-
-        // verify that product title is displayed correctly
-        val productTitle = appContext.getString(R.string.product_name_virtual, mockProductModel.name)
-        onView(WCMatchers.matchesWithIndex(withId(R.id.textPropertyValue), 0))
-                .check(matches(withText(productTitle)))
-
-        // verify that toolbar title is displayed correctly
-        onView(withId(R.id.toolbar)).check(matches(WCMatchers.withToolbarTitle(equalToIgnoringCase(productTitle))))
-    }
-
-    @Test
-    fun verifyProductDetailTotalOrderCountLessThan200FormattedCorrectly() {
-        // inject mock data to product detail
-        mockProductModel.totalSales = 200
-        activityTestRule.setOrderProductDetailWithMockData(mockProductModel)
-
-        // click on the first item in product list page
-        onView(withId(R.id.productList_products))
-                .perform(RecyclerViewActions.actionOnItemAtPosition<RecyclerView.ViewHolder>(0, click()))
-
-        // verify that total order count  = 200, is displayed correctly
-        onView(WCMatchers.matchesWithIndex(withId(R.id.textPropertyValue), 1))
-                .check(matches(withText(mockProductModel.totalSales.toString())))
-    }
-
-    @Test
-    fun verifyProductDetailTotalOrderCountLessThan2000FormattedCorrectly() {
-        // inject mock data to product detail
-        mockProductModel.totalSales = 2000
-        activityTestRule.setOrderProductDetailWithMockData(mockProductModel)
-
-        // click on the first item in product list page
-        onView(withId(R.id.productList_products))
-                .perform(RecyclerViewActions.actionOnItemAtPosition<RecyclerView.ViewHolder>(0, click()))
-
-        // verify that total order count  = 200, is displayed correctly
-        onView(WCMatchers.matchesWithIndex(withId(R.id.textPropertyValue), 1))
-                .check(matches(withText("2k")))
-    }
-
-    @Test
-    fun verifyProductDetailTotalOrderCountLessThan20000FormattedCorrectly() {
-        // inject mock data to product detail
-        mockProductModel.totalSales = 20000
-        activityTestRule.setOrderProductDetailWithMockData(mockProductModel)
-
-        // click on the first item in product list page
-        onView(withId(R.id.productList_products))
-                .perform(RecyclerViewActions.actionOnItemAtPosition<RecyclerView.ViewHolder>(0, click()))
-
-        // verify that total order count  = 200, is displayed correctly
-        onView(WCMatchers.matchesWithIndex(withId(R.id.textPropertyValue), 1))
-                .check(matches(withText("20k")))
-    }
-
-    @Test
-    fun verifyProductDetailTotalOrderCountLessThan2000000FormattedCorrectly() {
-        // inject mock data to product detail
-        mockProductModel.totalSales = 2000000
-        activityTestRule.setOrderProductDetailWithMockData(mockProductModel)
-
-        // click on the first item in product list page
-        onView(withId(R.id.productList_products))
-                .perform(RecyclerViewActions.actionOnItemAtPosition<RecyclerView.ViewHolder>(0, click()))
-
-        // verify that total order count  = 200, is displayed correctly
-        onView(WCMatchers.matchesWithIndex(withId(R.id.textPropertyValue), 1))
-                .check(matches(withText("2m")))
+        onView(withId(R.id.editText)).check(matches(withText(mockProductModel.name)))
     }
 
     @Test
@@ -307,13 +162,9 @@ class ProductDetailNavigationTest : TestBase() {
         onView(withId(R.id.productList_products))
                 .perform(RecyclerViewActions.actionOnItemAtPosition<RecyclerView.ViewHolder>(0, click()))
 
-        // verify that total order view is not displayed for variation products
-        onView(WCMatchers.matchesWithIndex(withId(R.id.textPropertyValue), 1)).check(doesNotExist())
-        onView(WCMatchers.matchesWithIndex(withId(R.id.textPropertyName), 1)).check(doesNotExist())
-
         // verify that reviews view is not displayed for variation products
-        onView(WCMatchers.matchesWithIndex(withId(R.id.textPropertyValue), 2)).check(doesNotExist())
-        onView(WCMatchers.matchesWithIndex(withId(R.id.textPropertyName), 2)).check(doesNotExist())
+        onView(WCMatchers.matchesWithIndex(withId(R.id.textPropertyValue), 3)).check(doesNotExist())
+        onView(WCMatchers.matchesWithIndex(withId(R.id.textPropertyName), 3)).check(doesNotExist())
     }
 
     @Test
@@ -325,14 +176,10 @@ class ProductDetailNavigationTest : TestBase() {
         onView(withId(R.id.productList_products))
                 .perform(RecyclerViewActions.actionOnItemAtPosition<RecyclerView.ViewHolder>(0, click()))
 
-        // verify that `product view on store` is displayed
-        onView(withId(R.id.textLink)).check(matches(ViewMatchers.withEffectiveVisibility(VISIBLE)))
+        openActionBarOverflowOrOptionsMenu(getInstrumentation().targetContext)
 
-        // verify that `product view on store` text is displayed correctly
-        onView(withId(R.id.textLink)).check(matches(withText(appContext.getString(R.string.product_view_in_store))))
-
-        // click the view product in store button
-        onView(withId(R.id.textLink)).perform(WCMatchers.scrollTo(), click())
+        // click the view product on store menu button
+        onView(withText(R.string.product_view_in_store)).perform(click())
 
         // check if webview intent is opened for the given url
         Intents.intended(allOf(IntentMatchers.hasAction(Intent.ACTION_VIEW),
@@ -350,8 +197,8 @@ class ProductDetailNavigationTest : TestBase() {
                 .perform(RecyclerViewActions.actionOnItemAtPosition<RecyclerView.ViewHolder>(0, click()))
 
         // verify that reviews view is hidden
-        onView(WCMatchers.matchesWithIndex(withId(R.id.textPropertyValue), 2)).check(doesNotExist())
-        onView(WCMatchers.matchesWithIndex(withId(R.id.textPropertyName), 2)).check(doesNotExist())
+        onView(WCMatchers.matchesWithIndex(withId(R.id.textPropertyValue), 4)).check(doesNotExist())
+        onView(WCMatchers.matchesWithIndex(withId(R.id.textPropertyName), 4)).check(doesNotExist())
     }
 
     @Test
@@ -367,14 +214,14 @@ class ProductDetailNavigationTest : TestBase() {
                 .perform(RecyclerViewActions.actionOnItemAtPosition<RecyclerView.ViewHolder>(0, click()))
 
         // verify that reviews view is displayed correctly
-        onView(WCMatchers.matchesWithIndex(withId(R.id.textPropertyName), 2))
+        onView(WCMatchers.matchesWithIndex(withId(R.id.textPropertyName), 1))
                 .check(matches(withText(appContext.getString(R.string.product_reviews))))
 
-        onView(WCMatchers.matchesWithIndex(withId(R.id.textPropertyValue), 2))
+        onView(WCMatchers.matchesWithIndex(withId(R.id.textPropertyValue), 4))
                 .check(matches(withText(mockProductModel.ratingCount.toString())))
 
         // verify the rating bar displays correct value
-        onView(WCMatchers.matchesWithIndex(withId(R.id.ratingBar), 2))
+        onView(WCMatchers.matchesWithIndex(withId(R.id.ratingBar), 4))
                 .check(matches(WCMatchers.matchesRating(mockProductModel.averageRating.toFloat())))
     }
 
@@ -404,12 +251,14 @@ class ProductDetailNavigationTest : TestBase() {
         onView(withId(R.id.productList_products))
                 .perform(RecyclerViewActions.actionOnItemAtPosition<RecyclerView.ViewHolder>(0, click()))
 
+        openActionBarOverflowOrOptionsMenu(getInstrumentation().targetContext)
+
         // click the share button
-        onView(withId(R.id.menu_share)).perform(click())
+        onView(withText(R.string.share)).perform(click())
 
         // check if share intent is opened with the given product details
-        intended(chooser(allOf(
-                hasAction(Intent.ACTION_SEND),
+        Intents.intended(chooser(allOf(
+                IntentMatchers.hasAction(Intent.ACTION_SEND),
                 hasExtra(Intent.EXTRA_TEXT, mockProductModel.permalink)
         )))
     }
@@ -428,16 +277,14 @@ class ProductDetailNavigationTest : TestBase() {
                 .perform(RecyclerViewActions.actionOnItemAtPosition<RecyclerView.ViewHolder>(0, click()))
 
         // verify caption is displayed correctly
-        onView(WCMatchers.matchesWithIndex(withId(R.id.cardCaptionText), 1))
+        onView(WCMatchers.matchesWithIndex(withId(R.id.textPropertyName), 3))
                 .check(matches(withText(appContext.getString(R.string.product_inventory))))
 
-        // verify that the pricing card property label = R.string.product_sku
-        onView(WCMatchers.matchesWithIndex(withId(R.id.textPropertyName), 3))
-                .check(matches(withText(appContext.getString(R.string.product_sku))))
-
         // verify that the pricing card sku text is displayed correctly
-        onView(WCMatchers.matchesWithIndex(withId(R.id.textPropertyValue), 1))
-                .check(matches(withText(mockProductModel.sku)))
+        onView(WCMatchers.matchesWithIndex(withId(R.id.textPropertyValue), 2))
+                .check(matches(withText(
+                        appContext.getString(R.string.product_sku) + ": " + mockProductModel.sku
+                )))
     }
 
     @Test
@@ -454,16 +301,14 @@ class ProductDetailNavigationTest : TestBase() {
                 .perform(RecyclerViewActions.actionOnItemAtPosition<RecyclerView.ViewHolder>(0, click()))
 
         // verify caption is displayed correctly
-        onView(WCMatchers.matchesWithIndex(withId(R.id.cardCaptionText), 1))
-                .check(matches(withText(appContext.getString(R.string.product_pricing_and_inventory))))
-
-        // verify that the pricing card property label = R.string.product_sku
-        onView(WCMatchers.matchesWithIndex(withId(R.id.textPropertyName), 4))
-                .check(matches(withText(appContext.getString(R.string.product_sku))))
+        onView(WCMatchers.matchesWithIndex(withId(R.id.textPropertyName), 3))
+                .check(matches(withText(appContext.getString(R.string.product_inventory))))
 
         // verify that the pricing card sku text is displayed correctly
         onView(WCMatchers.matchesWithIndex(withId(R.id.textPropertyValue), 2))
-                .check(matches(withText(mockProductModel.sku)))
+                .check(matches(withText(
+                        appContext.getString(R.string.product_sku) + ": " + mockProductModel.sku
+                )))
     }
 
     @Test
@@ -479,12 +324,8 @@ class ProductDetailNavigationTest : TestBase() {
         onView(withId(R.id.productList_products))
                 .perform(RecyclerViewActions.actionOnItemAtPosition<RecyclerView.ViewHolder>(0, click()))
 
-        // verify caption is displayed correctly
-        onView(WCMatchers.matchesWithIndex(withId(R.id.cardCaptionText), 1))
-                .check(matches(withText(appContext.getString(R.string.product_pricing_and_inventory))))
-
         // verify that the pricing card property label = R.string.product_price
-        onView(WCMatchers.matchesWithIndex(withId(R.id.textPropertyName), 3))
+        onView(WCMatchers.matchesWithIndex(withId(R.id.textPropertyName), 2))
                 .check(matches(withText(appContext.getString(R.string.product_price))))
 
         // verify that the pricing card pricing text is displayed correctly
@@ -506,12 +347,8 @@ class ProductDetailNavigationTest : TestBase() {
         onView(withId(R.id.productList_products))
                 .perform(RecyclerViewActions.actionOnItemAtPosition<RecyclerView.ViewHolder>(0, click()))
 
-        // verify caption is displayed correctly
-        onView(WCMatchers.matchesWithIndex(withId(R.id.cardCaptionText), 1))
-                .check(matches(withText(appContext.getString(R.string.product_pricing_and_inventory))))
-
         // verify that the pricing card property label = R.string.product_price
-        onView(WCMatchers.matchesWithIndex(withId(R.id.textPropertyName), 3))
+        onView(WCMatchers.matchesWithIndex(withId(R.id.textPropertyName), 2))
                 .check(matches(withText(appContext.getString(R.string.product_price))))
 
         // verify that the pricing card pricing text is displayed correctly
@@ -529,38 +366,37 @@ class ProductDetailNavigationTest : TestBase() {
         mockProductModel.height = "3"
         mockProductModel.length = "1"
         mockProductModel.shippingClass = "5"
+        mockProductModel.shippingClassId = 5
         activityTestRule.setOrderProductDetailWithMockData(mockProductModel)
 
         // click on the first item in product list page
         onView(withId(R.id.productList_products))
                 .perform(RecyclerViewActions.actionOnItemAtPosition<RecyclerView.ViewHolder>(0, click()))
 
-        // verify caption is displayed correctly
-        onView(WCMatchers.matchesWithIndex(withId(R.id.cardCaptionText), 1))
-                .check(matches(withText(appContext.getString(R.string.product_purchase_details))))
-
         // verify that the shipping card property label = R.string.product_shipping
-        onView(WCMatchers.matchesWithIndex(withId(R.id.textPropertyName), 3))
+        onView(WCMatchers.matchesWithIndex(withId(R.id.textPropertyName), 4))
                 .check(matches(withText(appContext.getString(R.string.product_shipping))))
 
         // verify that the shipping card pricing text is displayed correctly
         val weight = "${appContext.getString(R.string.product_weight)}: ${mockProductModel.weight}oz"
-        val size = "${appContext.getString(R.string.product_size)}: " +
+        val size = "${appContext.getString(R.string.product_dimensions)}: " +
                 "${mockProductModel.length} x ${mockProductModel.width} x ${mockProductModel.height} in"
         val shippingClass = "${appContext.getString(R.string.product_shipping_class)}: " +
                 mockProductModel.shippingClass
 
-        onView(WCMatchers.matchesWithIndex(withId(R.id.textPropertyValue), 1))
+        onView(WCMatchers.matchesWithIndex(withId(R.id.textPropertyValue), 3))
                 .check(matches(withText("$weight\n$size\n$shippingClass")))
     }
 
     @Test
     fun verifyProductDetailShippingInfoDisplayedCorrectlyWhenWidthHeightOnlyAvailable() {
         // inject mock data to product detail
+        val mockProductModel = WcProductTestUtils.generateProductDetail(productType = GROUPED)
         mockProductModel.weight = "4"
         mockProductModel.width = "2"
         mockProductModel.height = "3"
         mockProductModel.shippingClass = "5"
+        mockProductModel.shippingClassId = 5
         activityTestRule.setOrderProductDetailWithMockData(mockProductModel)
 
         // click on the first item in product list page
@@ -568,7 +404,7 @@ class ProductDetailNavigationTest : TestBase() {
                 .perform(RecyclerViewActions.actionOnItemAtPosition<RecyclerView.ViewHolder>(0, click()))
 
         // verify caption is displayed correctly
-        onView(WCMatchers.matchesWithIndex(withId(R.id.cardCaptionText), 1))
+        onView(WCMatchers.matchesWithIndex(withId(R.id.cardCaptionText), 2))
                 .check(matches(withText(appContext.getString(R.string.product_purchase_details))))
 
         // verify that the shipping card property label = R.string.product_shipping
@@ -582,7 +418,7 @@ class ProductDetailNavigationTest : TestBase() {
         val shippingClass = "${appContext.getString(R.string.product_shipping_class)}: " +
                 mockProductModel.shippingClass
 
-        onView(WCMatchers.matchesWithIndex(withId(R.id.textPropertyValue), 1))
+        onView(WCMatchers.matchesWithIndex(withId(R.id.textPropertyValue), 2))
                 .check(matches(withText("$weight\n$size\n$shippingClass")))
     }
 
@@ -598,11 +434,11 @@ class ProductDetailNavigationTest : TestBase() {
         onView(withId(R.id.productList_products))
                 .perform(RecyclerViewActions.actionOnItemAtPosition<RecyclerView.ViewHolder>(0, click()))
 
-        onView(WCMatchers.matchesWithIndex(withId(R.id.cardCaptionText), 1))
+        onView(WCMatchers.matchesWithIndex(withId(R.id.cardCaptionText), 2))
                 .check(matches(withText(appContext.getString(R.string.product_purchase_details))))
 
         // verify that the download card property label = R.string.product_downloads
-        onView(WCMatchers.matchesWithIndex(withId(R.id.textPropertyName), 3))
+        onView(WCMatchers.matchesWithIndex(withId(R.id.textPropertyName), 5))
                 .check(matches(withText(appContext.getString(R.string.product_downloads))))
 
         // verify that the shipping card pricing text is displayed correctly
@@ -616,7 +452,7 @@ class ProductDetailNavigationTest : TestBase() {
                 appContext.getString(R.string.product_download_expiry_days),
                 mockProductModel.downloadExpiry
         )}"
-        onView(WCMatchers.matchesWithIndex(withId(R.id.textPropertyValue), 1))
+        onView(WCMatchers.matchesWithIndex(withId(R.id.textPropertyValue), 4))
                 .check(matches(withText("$count\n$limit\n$expiry")))
     }
 
@@ -630,17 +466,17 @@ class ProductDetailNavigationTest : TestBase() {
         onView(withId(R.id.productList_products))
                 .perform(RecyclerViewActions.actionOnItemAtPosition<RecyclerView.ViewHolder>(0, click()))
 
-        onView(WCMatchers.matchesWithIndex(withId(R.id.cardCaptionText), 1))
+        onView(WCMatchers.matchesWithIndex(withId(R.id.cardCaptionText), 2))
                 .check(matches(withText(appContext.getString(R.string.product_purchase_details))))
 
         // verify that the download card property label = R.string.product_downloads
-        onView(WCMatchers.matchesWithIndex(withId(R.id.textPropertyName), 3))
+        onView(WCMatchers.matchesWithIndex(withId(R.id.textPropertyName), 5))
                 .check(matches(withText(appContext.getString(R.string.product_downloads))))
 
         // verify that the shipping card pricing text is displayed correctly
         val downloadableFiles = mockProductModel.getDownloadableFiles()
         val count = "${appContext.getString(R.string.product_downloadable_files)}: ${downloadableFiles.size}"
-        onView(WCMatchers.matchesWithIndex(withId(R.id.textPropertyValue), 1))
+        onView(WCMatchers.matchesWithIndex(withId(R.id.textPropertyValue), 4))
                 .check(matches(withText(count)))
     }
 
@@ -654,7 +490,7 @@ class ProductDetailNavigationTest : TestBase() {
         onView(withId(R.id.productList_products))
                 .perform(RecyclerViewActions.actionOnItemAtPosition<RecyclerView.ViewHolder>(0, click()))
 
-        onView(WCMatchers.matchesWithIndex(withId(R.id.cardCaptionText), 1))
+        onView(WCMatchers.matchesWithIndex(withId(R.id.cardCaptionText), 2))
                 .check(matches(withText(appContext.getString(R.string.product_purchase_details))))
 
         // verify that the purchase note property label = R.string.product_purchase_note
@@ -682,7 +518,7 @@ class ProductDetailNavigationTest : TestBase() {
         onView(withId(R.id.productList_products))
                 .perform(RecyclerViewActions.actionOnItemAtPosition<RecyclerView.ViewHolder>(0, click()))
 
-        onView(WCMatchers.matchesWithIndex(withId(R.id.cardCaptionText), 1))
+        onView(WCMatchers.matchesWithIndex(withId(R.id.cardCaptionText), 2))
                 .check(matches(withText(appContext.getString(R.string.product_purchase_details))))
 
         // verify that the purchase note property label = R.string.product_purchase_note

@@ -1,102 +1,102 @@
 <ar>
-3.7:
-- تُظهر تفاصيل طلبات استرداد الأموال كلاً من استرداد قيمة المنتج واسترداد قيمة الشحن.
-- لن تظهر وسوم HTML في عناوين المنتجات.
-- تم إصلاح بعض الأعطال النادرة.
+3.9:
+تم إصلاح عطلين: أحدهما حدث عند تحديد منتجين في قائمة المنتجات في الوقت نفسه، والآخر حدث عند تحرير كمية مخزون سالبة.
+
+ابقوا بأمان واغسلوا أيديكم جميعًا!
 </ar>
 <de-DE>
-3.7:
-- Details von rückerstatteten Bestellungen zeigen sowohl die rückerstatteten Produkte als auch die rückerstatteten Lieferungen an.
-- In Produkttiteln werden keine HTML-Tags mehr angezeigt.
-- Es wurden ein paar seltene Gründe für Abstürze behoben.
+3.9:
+Zwei Abstürze behoben: Einer trat auf, wenn man in der Produktliste zwei Produkte gleichzeitig auswählte, und der andere beim Bearbeiten einer negativen Bestandsmenge.
+
+Bleibt alle gesund und wascht eure Hände!
 </de-DE>
 <es-ES>
-3.7:
-- Los detalles de los pedidos reembolsados muestran los reembolsos de producto y de envío.
-- Los títulos de productos ya no muestran etiquetas HTML.
-- Se han solucionado algunos bloqueos que se producían en raras ocasiones.
+3.9:
+Se han corregido dos errores: uno que se producía al seleccionar dos productos en la lista de productos a la vez, y otro que se producía al editar una cantidad del inventario negativa.
+
+¡Cuidaos y lavaos las manos!
 </es-ES>
 <fr-FR>
-3.7 :
-- Les détails des commandes remboursées affichent les remboursements de produits et les remboursements d’expédition.
-- Les titres de produits n’affichent plus les étiquettes HTML.
-- Quelques incidents rares ont été résolus.
+3.9 :
+Résolution de deux incidents : l'un qui se produisait lors de la sélection simultanée de deux produits dans la liste de produits et l'autre qui se produisait lors de la modification d'une quantité en stock négative.
+
+Prenez soin de vous et lavez-vous les mains !
 </fr-FR>
 <iw-IL>
-3.7:
-- פרטים של הזמנות שבעבורן התקבל החזר כספי מציגים גם את ההחזרים הכספיים על המוצרים וגם את ההחזרים הכספיים על המשלוח.
-- כותרות המוצרים כבר לא מציגים תגיות של HTML.
-- תיקנו כמה קריסות נדירות.
+3.9:
+תיקנו שתי קריסות: קריסה אחת התרחשה בבחירה של בשני מוצרים ברשימת המוצרים במקביל וקריסה נוספת התרחשה בעריכה של כמות שלילית של מלאי.
+
+רחצו ידיים ושמרו על עצמכם!
 </iw-IL>
 <id>
-3.7:
-- Detail refund produk dan pengiriman.
-- Nama produk tanpa tag HTML.
-- Perbaikan crash.
+3.9:
+Memperbaiki dua crash: crash yang terjadi bila Anda memilih dua produk dalam Daftar Produk di waktu yang bersamaan, dan crash yang terjadi saat menyunting jumlah stok negatif.
+
+Selalu jaga kesehatan dan cuci tangan semuanya!
 </id>
 <it-IT>
-3.7:
-- I dettagli degli ordini rimborsati mostrano sia i rimborsi per i prodotti sia i rimborsi per la spedizione.
-- I titoli dei prodotti non mostrano più i tag HTML.
-- Sono stati risolti alcuni rari arresti anomali.
+3.9:
+Risolti due arresti anomali: uno che avveniva quando selezionavi due prodotti nell'Elenco dei prodotti contemporaneamente e un altro quando modificavi una quantità in magazzino negativa.
+
+Lavatevi le mani e state tutti al sicuro!
 </it-IT>
 <ja-JP>
-3.7:
-- 商品代金の返金と配送料金の返金の両方に対象注文の詳細が表示されます。
-- 商品名に HTML タグが表示されなくなりました。
-- 発生頻度が少ないクラッシュを数件修正しました。
+3.9:
+2つのクラッシュを修正しました。1つは商品リストで2つの商品を同時に選択したときに、もう1つは在庫数をマイナスに編集したときに発生していました。
+
+手を洗い、身の安全を守りましょう !
 </ja-JP>
 <ko-KR>
-3.7:
-- 환불된 주문 세부 정보에 제품 환불 및 배송 환불이 모두 표시됩니다.
-- 제품 제목에 더 이상 HTML 태그가 표시되지 않습니다.
-- 드물게 발생하던 몇 가지 충돌이 수정되었습니다.
+3.9:
+두 가지 충돌이 수정되었습니다. 제품 목록에서 두 개의 제품을 동시에 선택했을 때 발생하는 문제와 음의 재고 수량을 편집할 때 발생하는 문제를 수정했습니다.
+
+모두 안전하게 지내고 손을 자주 씻으세요!
 </ko-KR>
 <nl-NL>
-3.7:
-- Bij details van gerestitueerde bestellingen worden zowel productrestituties als verzendrestituties weergegeven.
-- In producttitels worden geen HTML-tags meer weergegeven.
-- Een paar zeldzame crashes zijn verholpen.
+3.9:
+Twee crashes verholpen: een die zich voordeed als je twee producten in de Productlijst samen selecteerde en een andere die zich voordeed als een negatieve voorraad werd bewerkt.
+
+Blijf veilig en was je handen allemaal!
 </nl-NL>
 <pt-BR>
-3.7:
-- Detalhes de pedidos reembolsados exibem os reembolsos de produtos e de envio.
-- Títulos de produtos não mostram mais tags de HTML.
-- Alguns travamentos raros foram consertados.
+3.9:
+Correção dos problemas causados ao selecionar dois produtos na Lista de produtos ao mesmo tempo e ao editar uma quantidade de estoque negativa.
+
+Fiquem seguros e lavem suas mãos!
 </pt-BR>
 <ru-RU>
-3.7:
-— В сведениях о заказах, по которым выполнен возврат, отображаются возвраты продуктов и возмещение расходов на доставку.
-— В заголовках продуктов больше не отображаются HTML-теги.
-— Исправлено несколько редких неисправностей.
+3.9:
+Исправлено 2 ошибки: первая — при одновременном выборе двух продуктов в списке, а вторая — при изменении отрицательного количества товара в наличии.
+
+Берегите себя и мойте руки!
 </ru-RU>
 <sv-SE>
-3.7:
-– Informationen om återbetalda beställningar visar återbetalningar av både produkter och frakt.
-– Produkttitlar visar inte längre HTML-taggar.
-– Några sällsynta krascher har åtgärdats.
+3.9:
+Två krascher har åtgärdats: en som uppstod när två produkter valdes samtidigt i produktlistan och en som uppstod vid redigering av en negativ lagerkvantitet.
+
+Var försiktiga och tvätta händerna, allihopa!
 </sv-SE>
 <tr-TR>
-3.7:
-- İadesi yapılan siparişlerin ayrıntıları hem ürün iadelerinde hem gönderim iadelerinde görüntülenir.
-- Ürün başlıklarında artık HTML etiketleri gösterilmez.
-- Nadir rastlanan birkaç kilitlenme sorunu düzeltildi.
+3.9:
+İki kilitlenme sorunu düzeltildi: Bu sorunlardan biri, Ürün Listesinde aynı anda iki ürün seçince, diğeri ise negatif bir stok miktarını düzenlerken oluşuyordu.
+
+Herkes güvende kalsın ve ellerini yıkasın!
 </tr-TR>
 <zh-CN>
-3.7：
-- 退款订单的详细信息既显示产品退款，也显示运费退款。
-- 产品标题不再显示 HTML 标签。
-- 修复了一些极少出现的崩溃问题。
+3.9：
+修复了两个崩溃问题：一个是在产品列表中同时选择两个产品时发生，另一个是在编辑负数库存量时发生。
+
+请大家注意安全，清洁双手！
 </zh-CN>
 <zh-TW>
-3.7：
-- 退款訂單詳細資訊會一併顯示產品和運費的退款金額。
-- 產品標題不再顯示 HTML 標籤。
-- 修正一些不常見的當機情況。
+3.9：
+修復兩種當機情況︰其一是在你於產品清單中同時選取兩個產品時發生，另一種當機情況則會在你編輯負數庫存數量時發生。
+
+各位，請保持安全並勤洗手！
 </zh-TW>
 <en-US>
-3.7:
-- Details of refunded orders display both product refunds and shipping refunds.
-- Product titles no longer show HTML tags.
-- A few rare crashes fixed.
+3.9:
+Fixed two crashes: one that happened when you selected two products in the Product List at the same time, and another that would happen when editing a negative stock quantity.
+
+Stay safe and wash your hands, everyone!
 </en-US>

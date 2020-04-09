@@ -79,6 +79,7 @@
     <string name="try_again">Try again</string>
     <string name="update">Update</string>
     <string name="discard_message">Do you want to discard your changes?</string>
+    <string name="discard_images_message">Product images are still uploading. Do you want to discard your changes?</string>
     <!--
         Date/Time Labels
     -->
@@ -184,9 +185,10 @@
     <string name="dashboard_fulfill_order_title_multiple">You have %1$d orders to fulfill</string>
     <string name="dashboard_fulfill_orders_msg">Review, prepare, and ship these pending orders</string>
 
-    <string name="my_store_stats_reverted_message">We have reverted to the old stats. To use the beta stats, please activate the WooCommerce Admin plugin with version 0.22 or higher</string>
+    <string name="my_store_stats_reverted_title">Upgrade to keep seeing your stats</string>
+    <string name="my_store_stats_reverted_message">We\'ve rolled out improvements to our analytics. Upgrade to WooCommerce 4.0 or above or install WooCommerce Admin plugin to keep seeing your stats after July 1, 2020.</string>
     <string name="my_store_stats_availability_title">Try our improved stats</string>
-    <string name="my_store_stats_availability_message">We\'re rolling out improvements to stats for  stores using the WooCommerce Admin plugin</string>
+    <string name="my_store_stats_availability_message">We\'re rolling out improvements to stats for stores with WooCommerce 4.0 or stores with WooCommerce Admin plugin installed</string>
     <!--
         Order List View
     -->
@@ -412,12 +414,14 @@
     <string name="product_variants">Variants</string>
     <string name="product_price">Price</string>
     <string name="product_price_empty">Add price</string>
+    <string name="product_shipping_empty">Add shipping</string>
     <string name="product_regular_price">Regular price</string>
     <string name="product_sale_price">Sale price</string>
     <string name="product_schedule_sale_label">Schedule sale</string>
     <string name="product_schedule_sale_sublabel">Automatically start and end a sale</string>
     <string name="product_schedule_sale_from_label">From</string>
     <string name="product_schedule_sale_to_label">To</string>
+    <string name="product_schedule_remove_end_date_link_label">Remove end date</string>
     <string name="product_sale_dates">Sale dates</string>
     <string name="product_sale_date_from_to">%1$s - %2$s</string>
     <string name="product_sale_date_from">from %1$s</string>
@@ -458,22 +462,18 @@
     <string name="product_view_in_store">View product on store</string>
     <string name="product_view_affiliate">View affiliate product</string>
     <string name="product_stock_status_instock">In stock</string>
-    <string name="product_stock_status_instock_with_variations">In stock \u2022 %d variations</string>
+    <string name="product_stock_status_instock_with_variants">In stock \u2022 %d variants</string>
     <string name="product_stock_status_out_of_stock">Out of stock</string>
     <string name="product_stock_status_on_backorder">On backorder</string>
     <string name="product_stock_count">%s in stock</string>
     <string name="product_backorders_no">Do not allow</string>
     <string name="product_backorders_yes">Allow</string>
     <string name="product_backorders_notify">Allow, but notify customer</string>
-    <string name="product_name_variable">Variable %s</string>
-    <string name="product_name_external">Affiliate %s</string>
-    <string name="product_name_grouped">Grouped %s</string>
-    <string name="product_name_virtual">Virtual %s</string>
     <string name="product_list_empty">No products yet</string>
     <string name="product_list_empty_search">No matching products</string>
     <string name="product_search_hint">Search products</string>
-    <string name="product_wip_title">Work in progress!</string>
-    <string name="product_wip_message">We\'re hard at work on the new Products section so you may see some changes as we get ready for launch 🚀</string>
+    <string name="product_wip_title">Limited editing available</string>
+    <string name="product_wip_message">We\'ve added editing functionality to simple products. Keep an eye out for more options soon!</string>
     <string name="product_bullet" translatable="false"> \u2022 </string>
     <string name="product_variant_hidden">Hidden</string>
     <string name="product_variant_list_empty">Add options like size and color from web. These will show up as options on the product page of your site</string>
@@ -485,11 +485,13 @@
     <string name="product_update_dialog_message">Please wait…</string>
     <string name="product_detail_update_product_error">Error updating product</string>
     <string name="product_detail_update_product_success">Product updated</string>
-    <string name="product_detail_title_hint">Enter title</string>
+    <string name="product_detail_title_hint">Product title</string>
     <string name="product_detail_editable_text_hint">Enter text</string>
     <string name="product_inventory_quantity">Quantity</string>
     <string name="product_inventory_quantity_summary">How many items are in stock</string>
     <string name="product_inventory_update_sku_error">SKU already in use by another product</string>
+    <string name="product_inventory_update_stock_quantity_error">Please enter a number</string>
+    <string name="product_pricing_update_sale_price_error">Sale price must be less than regular price</string>
 
     <!--
         Product images
@@ -567,6 +569,13 @@
     <string name="settings_crash_reporting">Crash reports</string>
     <string name="settings_crash_reporting_detail">To help us improve the app\'s performance and fix the occasional bug, enable automatic crash reports</string>
     <string name="settings_switch_site_notifs_msg">Switched to %s. You will only receive notifications for this store</string>
+    <string name="settings_app_theme_title">Appearance</string>
+    <string name="settings_app_theme_option_light">Light</string>
+    <string name="settings_app_theme_option_dark">Dark</string>
+    <string name="settings_app_theme_option_system">System default</string>
+    <string name="settings_app_theme_option_battery_saver">Set by Battery Saver</string>
+    <string name="settings_app_theme_option_default" translatable="false">@string/settings_app_theme_option_battery_saver</string>
+    <string name="settings_about_title">About WooCommerce</string>
     <!--
         WCToggleSingleOptionView
     -->
@@ -753,7 +762,7 @@
     <!-- Product status -->
     <string name="product_status_published">Published</string>
     <string name="product_status_private">Private</string>
-    <string name="product_status_pending">Pending</string>
+    <string name="product_status_pending">Pending Review</string>
     <string name="product_status_draft">Draft</string>
 
     <!-- permissions -->

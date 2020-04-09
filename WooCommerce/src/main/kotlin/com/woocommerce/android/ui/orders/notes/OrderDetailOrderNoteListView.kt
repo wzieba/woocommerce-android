@@ -4,9 +4,9 @@ import android.content.Context
 import android.text.format.DateFormat
 import android.util.AttributeSet
 import android.view.View
-import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.recyclerview.widget.DefaultItemAnimator
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.google.android.material.card.MaterialCardView
 import com.woocommerce.android.R
 import com.woocommerce.android.analytics.AnalyticsTracker
 import com.woocommerce.android.analytics.AnalyticsTracker.Stat
@@ -16,8 +16,11 @@ import com.woocommerce.android.ui.orders.notes.OrderNoteListItem.Note
 import com.woocommerce.android.widgets.SkeletonView
 import kotlinx.android.synthetic.main.order_detail_note_list.view.*
 
-class OrderDetailOrderNoteListView @JvmOverloads constructor(ctx: Context, attrs: AttributeSet? = null)
-    : ConstraintLayout(ctx, attrs) {
+class OrderDetailOrderNoteListView @JvmOverloads constructor(
+    ctx: Context,
+    attrs: AttributeSet? = null,
+    defStyleAttr: Int = 0
+) : MaterialCardView(ctx, attrs, defStyleAttr) {
     init {
         View.inflate(context, R.layout.order_detail_note_list, this)
     }
@@ -32,12 +35,6 @@ class OrderDetailOrderNoteListView @JvmOverloads constructor(ctx: Context, attrs
     fun initView(notes: List<OrderNote>, orderDetailListener: OrderDetailNoteListener) {
         listener = orderDetailListener
 
-        val viewAdapter = OrderNotesAdapter()
-        val notesWithHeaders = addHeaders(notes)
-        viewAdapter.setNotes(notesWithHeaders)
-
-        val viewManager = LinearLayoutManager(context)
-
         noteList_addNoteContainer.setOnClickListener {
             AnalyticsTracker.track(Stat.ORDER_DETAIL_ADD_NOTE_BUTTON_TAPPED)
 
@@ -46,9 +43,11 @@ class OrderDetailOrderNoteListView @JvmOverloads constructor(ctx: Context, attrs
 
         notesList_notes.apply {
             setHasFixedSize(false)
-            layoutManager = viewManager
-            adapter = viewAdapter
+            layoutManager = LinearLayoutManager(context)
+            adapter = OrderNotesAdapter()
         }
+
+        updateView(notes)
     }
 
     private fun addHeaders(notes: List<OrderNote>): List<OrderNoteListItem> {
@@ -60,7 +59,7 @@ class OrderDetailOrderNoteListView @JvmOverloads constructor(ctx: Context, attrs
     }
 
     fun updateView(notes: List<OrderNote>) {
-        val adapter = notesList_notes.adapter as OrderNotesAdapter
+        val adapter = notesList_notes.adapter as? OrderNotesAdapter ?: OrderNotesAdapter()
         enableItemAnimator(adapter.itemCount == 0)
 
         val notesWithHeaders = addHeaders(notes)

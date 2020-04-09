@@ -3,10 +3,12 @@ package com.woocommerce.android.ui.main
 import android.app.Activity
 import android.app.ProgressDialog
 import android.content.Intent
+import android.content.res.Resources.Theme
 import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
+import android.view.WindowManager
 import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 import androidx.appcompat.app.AppCompatDelegate
@@ -116,9 +118,19 @@ class MainActivity : AppUpgradeActivity(),
     // TODO: Using deprecated ProgressDialog temporarily - a proper post-login experience will replace this
     private var progressDialog: ProgressDialog? = null
 
+    /**
+     * Manually set the theme here so the splash screen will be visible while this activity
+     * is loading. Also setting it here ensures all fragments used in this activity will also
+     * use this theme at runtime (in the case of switching the theme at runtime).
+     */
+    override fun getTheme(): Theme {
+        return super.getTheme().also { it.applyStyle(R.style.Theme_Woo_DayNight, true) }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         AndroidInjection.inject(this)
         super.onCreate(savedInstanceState)
+
         setContentView(R.layout.activity_main)
 
         // Set the toolbar
@@ -126,11 +138,11 @@ class MainActivity : AppUpgradeActivity(),
 
         presenter.takeView(this)
 
+        bottomNavView = bottom_nav.also { it.init(supportFragmentManager, this) }
+
         val navHostFragment = supportFragmentManager.findFragmentById(R.id.nav_host_fragment_main) as NavHostFragment
         navController = navHostFragment.navController
         navController.addOnDestinationChangedListener(this)
-
-        bottomNavView = bottom_nav.also { it.init(supportFragmentManager, this) }
 
         // Verify authenticated session
         if (!presenter.userIsLoggedIn()) {
@@ -318,47 +330,29 @@ class MainActivity : AppUpgradeActivity(),
             container.visibility = View.INVISIBLE
         }
 
-        // make sure the correct up icon appears
         val showUpIcon: Boolean
         val showCrossIcon: Boolean
         val showBottomNav: Boolean
-        val showToolbarShadow: Boolean
         if (isAtRoot) {
             showUpIcon = false
             showCrossIcon = false
             showBottomNav = true
-            showToolbarShadow = true
         } else {
             showUpIcon = true
             showCrossIcon = when (destination.id) {
-                R.id.productDetailFragment,
                 R.id.productShippingClassFragment,
                 R.id.issueRefundFragment,
                 R.id.addOrderShipmentTrackingFragment,
                 R.id.addOrderNoteFragment -> {
                     true
                 }
+                R.id.productDetailFragment -> {
+                    // show Cross icon only when product detail isn't opened from the product list
+                    bottomNavView.currentPosition != PRODUCTS
+                }
                 else -> {
                     false
                 }
-            }
-            showBottomNav = when (destination.id) {
-                R.id.addOrderShipmentTrackingFragment,
-                R.id.addOrderNoteFragment,
-                R.id.issueRefundFragment,
-                R.id.refundAmountDialog,
-                R.id.refundConfirmationDialog,
-                R.id.refundItemsPickerDialog,
-                R.id.refundSummaryFragment -> {
-                    false
-                }
-                else -> {
-                    true
-                }
-            }
-            showToolbarShadow = when (destination.id) {
-                R.id.issueRefundFragment -> false
-                else -> true
             }
         }
         supportActionBar?.let { actionBar ->
@@ -370,14 +364,19 @@ class MainActivity : AppUpgradeActivity(),
             }
             actionBar.setHomeAsUpIndicator(icon)
 
-            if (showToolbarShadow) {
-                actionBar.elevation = resources.getDimension(R.dimen.appbar_elevation)
+            // the image viewer should be shown full screen and we hide the actionbar since the fragment
+            // provides its own toolbar
+            if (destination.id == R.id.productImageViewerFragment) {
+                window.addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
+                actionBar.hide()
             } else {
-                actionBar.elevation = 0f
+                window.clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
+                actionBar.show()
             }
         }
 
-        if (showBottomNav) {
+        // only show bottom nav if we're at a root fragment
+        if (isAtRoot) {
             showBottomNav()
         } else {
             hideBottomNav()
@@ -533,19 +532,19 @@ class MainActivity : AppUpgradeActivity(),
 
     override fun updateOrderBadge(hideCountUntilComplete: Boolean) {
         if (hideCountUntilComplete) {
-            bottomNavView.hideOrderBadgeCount()
+            bottomNavView.clearOrderBadgeCount()
         }
         presenter.fetchUnfilledOrderCount()
     }
 
     override fun showOrderBadge(count: Int) {
         unfilledOrderCount = count
-        bottomNavView.showOrderBadge(count)
+        bottomNavView.setOrderBadgeCount(count)
     }
 
     override fun hideOrderBadge() {
         unfilledOrderCount = 0
-        bottomNavView.hideOrderBadge()
+        bottomNavView.setOrderBadgeCount(0)
     }
 
     override fun fetchRevenueStatsAvailability(site: SiteModel) {
