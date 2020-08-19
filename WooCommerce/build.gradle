@@ -146,7 +146,9 @@ dependencies {
         exclude group: "com.android.support"
     }
 
-    implementation 'com.automattic:tracks:1.2.1'
+    implementation ('com.automattic:tracks:1.2.1') {
+        exclude group: 'com.fasterxml.jackson.core', module: 'jackson-core'
+    }
 
     implementation("com.github.wordpress-mobile.WordPress-FluxC-Android:fluxc:$fluxCVersion") {
         exclude group: "com.android.support"
