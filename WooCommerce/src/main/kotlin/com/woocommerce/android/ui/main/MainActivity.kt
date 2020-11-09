@@ -50,6 +50,7 @@ import com.woocommerce.android.ui.orders.list.OrderListFragment
 import com.woocommerce.android.ui.prefs.AppSettingsActivity
 import com.woocommerce.android.ui.reviews.ReviewDetailFragmentDirections
 import com.woocommerce.android.ui.sitepicker.SitePickerActivity
+import com.woocommerce.android.util.CrashUtils
 import com.woocommerce.android.util.WooAnimUtils
 import com.woocommerce.android.util.WooAnimUtils.Duration
 import com.woocommerce.android.widgets.AppRatingDialog
@@ -89,6 +90,7 @@ class MainActivity : AppUpgradeActivity(),
         // push notification-related constants
         const val FIELD_OPENED_FROM_PUSH = "opened-from-push-notification"
         const val FIELD_REMOTE_NOTE_ID = "remote-note-id"
+        const val FIELD_REMOTE_BLOG_ID = "remote-blog-id"
         const val FIELD_OPENED_FROM_PUSH_GROUP = "opened-from-push-group"
         const val FIELD_OPENED_FROM_ZENDESK = "opened-from-zendesk"
         const val FIELD_NOTIFICATION_TYPE = "notification-type"
@@ -700,6 +702,12 @@ class MainActivity : AppUpgradeActivity(),
 
                     // Remove single notification from the system bar
                     NotificationHandler.removeNotificationWithNoteIdFromSystemBar(this, remoteNoteId.toString())
+
+                    // fetch the current site for the blog_id and make it the selected site
+                    presenter.fetchSiteBySiteId(intent.getLongExtra(FIELD_REMOTE_BLOG_ID, -1))?.let {
+                        selectedSite.set(it)
+                        CrashUtils.setCurrentSite(it)
+                    }
 
                     showNotificationDetail(remoteNoteId)
                 } else {

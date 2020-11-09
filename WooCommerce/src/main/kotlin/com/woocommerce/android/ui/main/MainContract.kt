@@ -16,6 +16,7 @@ interface MainContract {
         fun selectedSiteChanged(site: SiteModel)
         fun fetchUnfilledOrderCount()
         fun fetchSitesAfterDowngrade()
+        fun fetchSiteBySiteId(siteId: Long): SiteModel?
     }
 
     interface View : BaseView<Presenter>, TopLevelFragmentRouter {

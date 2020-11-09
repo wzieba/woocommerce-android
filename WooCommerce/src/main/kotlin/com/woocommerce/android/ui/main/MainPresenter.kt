@@ -108,6 +108,8 @@ class MainPresenter @Inject constructor(
         dispatcher.dispatch(SiteActionBuilder.newFetchSitesAction())
     }
 
+    override fun fetchSiteBySiteId(siteId: Long): SiteModel? = siteStore.getSiteBySiteId(siteId)
+
     @Suppress("unused")
     @Subscribe(threadMode = ThreadMode.MAIN)
     fun onAuthenticationChanged(event: OnAuthenticationChanged) {
