@@ -70,6 +70,7 @@ class NotificationHandler @Inject constructor(
         const val PUSH_ARG_TYPE = "type"
         const val PUSH_ARG_TITLE = "title"
         const val PUSH_ARG_MSG = "msg"
+        const val PUSH_ARG_BLOG_ID = "blog_id"
         const val PUSH_ARG_NOTE_ID = "note_id"
         const val PUSH_ARG_NOTE_FULL_DATA = "note_full_data"
 
@@ -251,6 +252,7 @@ class NotificationHandler @Inject constructor(
             return
         }
 
+        val blogId = data.getString(PUSH_ARG_BLOG_ID, "0").toLong()
         val noteTypeStr = StringUtils.notNullStr(data.getString(PUSH_ARG_TYPE))
         val noteType = when (noteTypeStr) {
             PUSH_TYPE_NEW_ORDER -> {
@@ -317,11 +319,11 @@ class NotificationHandler @Inject constructor(
                 shouldCircularizeNoteIcon(noteType))
         largeIconBitmap?.let { builder.setLargeIcon(it) }
 
-        showSingleNotificationForBuilder(context, builder, noteType, wpComNoteId, localPushId)
+        showSingleNotificationForBuilder(context, builder, noteType, wpComNoteId, blogId, localPushId)
 
         // Also add a group summary notification, which is required for non-wearable devices
         // Do not need to play the sound again. We've already played it in the individual builder.
-        showGroupNotificationForBuilder(context, builder, noteType, wpComNoteId, message)
+        showGroupNotificationForBuilder(context, builder, noteType, wpComNoteId, blogId, message)
 
         if (noteType == REVIEW) {
             setHasUnseenReviewNotifs(true)
@@ -477,6 +479,7 @@ class NotificationHandler @Inject constructor(
         builder: NotificationCompat.Builder,
         noteType: NotificationChannelType,
         wpComNoteId: String,
+        blogId: Long,
         pushId: Int
     ) {
         when (noteType) {
@@ -497,7 +500,7 @@ class NotificationHandler @Inject constructor(
             }
         }
 
-        showWPComNotificationForBuilder(builder, context, wpComNoteId, pushId, noteType)
+        showWPComNotificationForBuilder(builder, context, wpComNoteId, blogId, pushId, noteType)
     }
 
     private fun showGroupNotificationForBuilder(
@@ -505,6 +508,7 @@ class NotificationHandler @Inject constructor(
         builder: NotificationCompat.Builder,
         noteType: NotificationChannelType,
         wpComNoteId: String,
+        blogId: Long,
         message: String?
     ) {
         // Using a copy of the map to avoid concurrency problems
@@ -553,12 +557,12 @@ class NotificationHandler @Inject constructor(
                     .setSound(null)
                     .setVibrate(null)
 
-            showWPComNotificationForBuilder(groupBuilder, context, wpComNoteId, GROUP_NOTIFICATION_ID, noteType)
+            showWPComNotificationForBuilder(groupBuilder, context, wpComNoteId, blogId, GROUP_NOTIFICATION_ID, noteType)
         } else {
             // Set the individual notification we've already built as the group summary
             builder.setGroupSummary(true)
                     .setGroupAlertBehavior(NotificationCompat.GROUP_ALERT_CHILDREN)
-            showWPComNotificationForBuilder(builder, context, wpComNoteId, GROUP_NOTIFICATION_ID, noteType)
+            showWPComNotificationForBuilder(builder, context, wpComNoteId, blogId, GROUP_NOTIFICATION_ID, noteType)
         }
     }
 
@@ -569,14 +573,16 @@ class NotificationHandler @Inject constructor(
         builder: NotificationCompat.Builder,
         context: Context,
         wpComNoteId: String,
+        blogId: Long,
         pushId: Int,
         noteType: NotificationChannelType
     ) {
-        // Open the app and load the notifications tab
+        // Open the app and load the correct tab based on the noteType
         val resultIntent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_SINGLE_TOP
             putExtra(MainActivity.FIELD_OPENED_FROM_PUSH, true)
             putExtra(MainActivity.FIELD_REMOTE_NOTE_ID, wpComNoteId.toLong())
+            putExtra(MainActivity.FIELD_REMOTE_BLOG_ID, blogId)
             putExtra(MainActivity.FIELD_NOTIFICATION_TYPE, noteType.name)
             if (pushId == GROUP_NOTIFICATION_ID) {
                 putExtra(MainActivity.FIELD_OPENED_FROM_PUSH_GROUP, true)
