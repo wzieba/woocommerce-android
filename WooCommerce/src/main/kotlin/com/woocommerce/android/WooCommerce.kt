@@ -3,6 +3,7 @@ package com.woocommerce.android
 import android.content.Context
 import android.content.IntentFilter
 import android.net.ConnectivityManager
+import android.os.Bundle
 import android.os.StrictMode
 import android.os.StrictMode.ThreadPolicy
 import android.os.StrictMode.VmPolicy
@@ -154,6 +155,24 @@ open class WooCommerce : MultiDexApplication(), HasAndroidInjector, ApplicationL
                 this, BuildConfig.ZENDESK_DOMAIN, BuildConfig.ZENDESK_APP_ID,
                 BuildConfig.ZENDESK_OAUTH_CLIENT_ID
         )
+
+        // Store 1 notification
+        generateTestNotification(
+            context = this,
+            type = "store_order",
+            noteId = "4028765579",
+            blogId = "163523746",
+            userId = "152294244"
+        )
+
+        // Store 2 notification
+//        generateTestNotification(
+//            context = this,
+//            type = "store_order",
+//            noteId = "4467042658",
+//            blogId = "161199960",
+//            userId = "152294244"
+//        )
     }
 
     /**
@@ -332,6 +351,23 @@ open class WooCommerce : MultiDexApplication(), HasAndroidInjector, ApplicationL
             )
             AnalyticsTracker.track(Stat.JETPACK_TUNNEL_TIMEOUT, properties)
         }
+    }
+
+    fun generateTestNotification(
+        context: Context,
+        type: String,
+        noteId: String,
+        blogId: String,
+        userId: String
+    ) {
+        val data = Bundle().apply {
+            putString(NotificationHandler.PUSH_ARG_NOTE_ID, noteId)
+            putString(NotificationHandler.PUSH_ARG_USER, userId)
+            putString(NotificationHandler.PUSH_ARG_TYPE, type)
+            putString(NotificationHandler.PUSH_ARG_MSG, "Test notification $noteId")
+            putString(NotificationHandler.PUSH_ARG_BLOG_ID, blogId)
+        }
+        notificationHandler.buildAndShowNotificationFromNoteData(context, data, accountStore.account)
     }
 
     override fun androidInjector(): AndroidInjector<Any> = androidInjector
