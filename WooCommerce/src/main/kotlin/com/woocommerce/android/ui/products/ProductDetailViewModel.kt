@@ -150,10 +150,6 @@ class ProductDetailViewModel @AssistedInject constructor(
     final val productTagsViewStateData = LiveDataDelegate(savedState, ProductTagsViewState())
     private var productTagsViewState by productTagsViewStateData
 
-    // view state for the product downloads screen
-    final val productDownloadsViewStateData = LiveDataDelegate(savedState, ProductDownloadsViewState())
-    private var productDownloadsViewState by productDownloadsViewStateData
-
     private val _productCategories = MutableLiveData<List<ProductCategory>>()
     val productCategories: LiveData<List<ProductCategory>> = _productCategories
 
@@ -391,7 +387,6 @@ class ProductDetailViewModel @AssistedInject constructor(
     fun uploadDownloadableFile(uri: Uri) {
         launch {
             viewState = viewState.copy(isUploadingDownloadableFile = true)
-            productDownloadsViewState = productDownloadsViewState.copy(isUploadingDownloadableFile = true)
             try {
                 val url = mediaFilesRepository.uploadFile(uri)
                 showAddProductDownload(url)
@@ -399,7 +394,6 @@ class ProductDetailViewModel @AssistedInject constructor(
                 triggerEvent(ShowSnackbar(string.product_downloadable_files_upload_failed))
             } finally {
                 viewState = viewState.copy(isUploadingDownloadableFile = false)
-                productDownloadsViewState = productDownloadsViewState.copy(isUploadingDownloadableFile = false)
             }
         }
     }
@@ -1646,11 +1640,6 @@ class ProductDetailViewModel @AssistedInject constructor(
         val shouldDisplayDoneMenuButton: Boolean? = null,
         val isProgressDialogShown: Boolean? = null,
         val currentFilter: String = ""
-    ) : Parcelable
-
-    @Parcelize
-    data class ProductDownloadsViewState(
-        val isUploadingDownloadableFile: Boolean? = null
     ) : Parcelable
 
     @AssistedInject.Factory

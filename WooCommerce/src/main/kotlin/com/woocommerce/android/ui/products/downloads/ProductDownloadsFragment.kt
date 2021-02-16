@@ -5,6 +5,7 @@ import android.view.Menu
 import android.view.MenuInflater
 import android.view.MenuItem
 import android.view.View
+import androidx.fragment.app.viewModels
 import androidx.lifecycle.observe
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.ItemTouchHelper.DOWN
@@ -13,26 +14,28 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.woocommerce.android.R
 import com.woocommerce.android.analytics.AnalyticsTracker
 import com.woocommerce.android.databinding.FragmentProductDownloadsListBinding
-import com.woocommerce.android.extensions.handleResult
 import com.woocommerce.android.extensions.takeIfNotEqualTo
-import com.woocommerce.android.model.Product.Image
-import com.woocommerce.android.ui.products.BaseProductFragment
-import com.woocommerce.android.ui.products.ProductDetailViewModel
+import com.woocommerce.android.ui.products.BaseProductEditorFragment2
 import com.woocommerce.android.ui.products.ProductDetailViewModel.ProductExitEvent.ExitProductDownloads
-import com.woocommerce.android.ui.wpmediapicker.WPMediaPickerFragment
+import com.woocommerce.android.ui.products.ProductEditorViewModelFactory
 import com.woocommerce.android.widgets.CustomProgressDialog
 import com.woocommerce.android.widgets.DraggableItemTouchHelper
+import dagger.Lazy
+import javax.inject.Inject
 
-class ProductDownloadsFragment : BaseProductFragment(R.layout.fragment_product_downloads_list) {
+class ProductDownloadsFragment : BaseProductEditorFragment2(R.layout.fragment_product_downloads_list) {
     private val itemTouchHelper by lazy {
         DraggableItemTouchHelper(
-                dragDirs = UP or DOWN,
-                onMove = { from, to ->
-                    viewModel.swapDownloadableFiles(from, to)
-                    updateFilesFromProductDraft()
-                }
+            dragDirs = UP or DOWN,
+            onMove = { from, to ->
+                viewModel.swapDownloadableFiles(from, to)
+                updateFilesFromProductDraft()
+            }
         )
     }
+
+    @Inject lateinit var viewModelFactory: Lazy<ProductEditorViewModelFactory>
+    private val viewModel: ProductDownloadsViewModel by viewModels { viewModelFactory.get() }
 
     private var _binding: FragmentProductDownloadsListBinding? = null
     private val binding get() = _binding!!
@@ -57,8 +60,8 @@ class ProductDownloadsFragment : BaseProductFragment(R.layout.fragment_product_d
         _binding = FragmentProductDownloadsListBinding.bind(view)
 
         setHasOptionsMenu(true)
-        setupObservers(viewModel)
-        setupResultHandlers(viewModel)
+        setupObservers()
+        setupResultHandlers()
 
         with(binding.productDownloadsRecycler) {
             adapter = productDownloadsAdapter
@@ -92,16 +95,16 @@ class ProductDownloadsFragment : BaseProductFragment(R.layout.fragment_product_d
         }
     }
 
-    private fun setupResultHandlers(viewModel: ProductDetailViewModel) {
-        handleResult<List<Image>>(WPMediaPickerFragment.KEY_WP_IMAGE_PICKER_RESULT) {
-            viewModel.showAddProductDownload(it.first().source)
-            changesMade()
-        }
+    private fun setupResultHandlers() {
+//        handleResult<List<Image>>(WPMediaPickerFragment.KEY_WP_IMAGE_PICKER_RESULT) {
+//            viewModel.showAddProductDownload(it.first().source)
+//            changesMade()
+//        }
     }
 
     override fun getFragmentTitle(): String = getString(R.string.product_downloadable_files)
 
-    fun setupObservers(viewModel: ProductDetailViewModel) {
+    fun setupObservers() {
         viewModel.productDownloadsViewStateData.observe(viewLifecycleOwner) { old, new ->
             new.isUploadingDownloadableFile?.takeIfNotEqualTo(old?.isUploadingDownloadableFile) {
                 if (it) {
@@ -140,14 +143,14 @@ class ProductDownloadsFragment : BaseProductFragment(R.layout.fragment_product_d
     private fun updateFilesFromProductDraft() {
         val product = requireNotNull(viewModel.getProduct().productDraft)
         productDownloadsAdapter.filesList = product.downloads
-        changesMade()
+        // changesMade()
     }
 
-    override fun hasChanges(): Boolean {
-        return viewModel.hasDownloadsChanges() || viewModel.hasDownloadsSettingsChanges()
-    }
-
-    override fun onRequestAllowBackPress(): Boolean {
-        return viewModel.onBackButtonClicked(ExitProductDownloads())
-    }
+//    override fun hasChanges(): Boolean {
+//        return viewModel.hasDownloadsChanges() || viewModel.hasDownloadsSettingsChanges()
+//    }
+//
+//    override fun onRequestAllowBackPress(): Boolean {
+//        return viewModel.onBackButtonClicked(ExitProductDownloads())
+//    }
 }
