@@ -24,6 +24,13 @@
                 android:orientation="vertical"
                 tools:ignore="UselessParent">
 
+                <Button
+                    android:id="@+id/pay_now"
+                    android:text="DUMMY Accept Payment"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    />
+
                 <!-- Shipping Labels work in progress notice card -->
                 <com.woocommerce.android.ui.products.FeatureWIPNoticeCard
                     android:id="@+id/orderDetail_shippingLabelsWipCard"

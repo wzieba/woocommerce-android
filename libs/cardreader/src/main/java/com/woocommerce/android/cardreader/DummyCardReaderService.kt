@@ -18,6 +18,7 @@ import com.stripe.stripeterminal.model.external.ReaderEvent
 import com.stripe.stripeterminal.model.external.TerminalException
 
 class DummyCardReaderService : CardReaderService {
+    val paymentService: PaymentService = DummyPaymentService()
     private val observer: TerminalLifecycleObserver = TerminalLifecycleObserver.getInstance()
     private lateinit var application: Application
 
@@ -45,7 +46,7 @@ class DummyCardReaderService : CardReaderService {
 
             override fun onPaymentStatusChange(status: PaymentStatus) {
                 super.onPaymentStatusChange(status)
-                Log.d("CardReader", "onPaymentStatusChange: $status.name")
+                Log.d("CardReader", "onPaymentStatusChange: ${status.name}")
             }
 
             override fun onReportLowBatteryWarning() {
