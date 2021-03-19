@@ -1,8 +1,10 @@
 package com.woocommerce.android.ui.main
 
+import android.Manifest
 import android.app.Activity
 import android.app.ProgressDialog
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.content.res.Resources.Theme
 import android.os.Bundle
 import android.view.Menu
@@ -13,6 +15,7 @@ import androidx.annotation.StringRes
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.appcompat.widget.Toolbar
 import androidx.coordinatorlayout.widget.CoordinatorLayout
+import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentManager
@@ -26,6 +29,7 @@ import com.woocommerce.android.BuildConfig
 import com.woocommerce.android.NavGraphMainDirections
 import com.woocommerce.android.R
 import com.woocommerce.android.RequestCodes
+import com.woocommerce.android.WooCommerce
 import com.woocommerce.android.analytics.AnalyticsTracker
 import com.woocommerce.android.analytics.AnalyticsTracker.Stat
 import com.woocommerce.android.databinding.ActivityMainBinding
@@ -98,6 +102,8 @@ class MainActivity : AppUpgradeActivity(),
         const val FIELD_OPENED_FROM_PUSH_GROUP = "opened-from-push-group"
         const val FIELD_OPENED_FROM_ZENDESK = "opened-from-zendesk"
         const val FIELD_NOTIFICATION_TYPE = "notification-type"
+
+        const val LOCATION_PERMISSION_REQUEST_CODE = 48273
 
         interface BackPressListener {
             fun onRequestAllowBackPress(): Boolean
@@ -240,6 +246,42 @@ class MainActivity : AppUpgradeActivity(),
         // check for any new app updates only after the user has logged into the app (release builds only)
         if (!BuildConfig.DEBUG) {
             checkForAppUpdates()
+        }
+        // Check for location permissions
+        // TODO cardreader: Add permissions into manifest for android 5
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) ==
+            PackageManager.PERMISSION_GRANTED) {
+            val cardService = (application as WooCommerce).cardService
+            cardService.init(application)
+            // TODO cardreader: verify gps is enabled
+            if (!cardService.isInitialized()) {
+                cardService.init(application)
+            }
+            cardService.onConnect()
+        } else {
+            // If we don't have them yet, request them before doing anything else
+            val permissions = arrayOf(Manifest.permission.ACCESS_FINE_LOCATION)
+            ActivityCompat.requestPermissions(this, permissions, LOCATION_PERMISSION_REQUEST_CODE)
+        }
+    }
+
+    /**
+     * Receive the result of our permissions check, and initialize if we can
+     */
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        // If we receive a response to our permission check, initialize
+        if (requestCode == LOCATION_PERMISSION_REQUEST_CODE) {
+            val cardService = (application as WooCommerce).cardService
+            // TODO cardservice: check if gps is enabled
+            if (!cardService.isInitialized()) {
+                cardService.init(application)
+            }
+            cardService.onConnect()
         }
     }
 

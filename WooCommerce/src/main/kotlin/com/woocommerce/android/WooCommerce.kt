@@ -12,6 +12,7 @@ import com.google.android.gms.common.ConnectionResult
 import com.google.android.gms.common.GoogleApiAvailability
 import com.woocommerce.android.analytics.AnalyticsTracker
 import com.woocommerce.android.analytics.AnalyticsTracker.Stat
+import com.woocommerce.android.cardreader.DummyCardReaderService
 import com.woocommerce.android.di.AppComponent
 import com.woocommerce.android.di.DaggerAppComponent
 import com.woocommerce.android.di.WooCommerceGlideModule
@@ -56,6 +57,8 @@ import org.wordpress.android.fluxc.utils.ErrorUtils.OnUnexpectedError
 import javax.inject.Inject
 
 open class WooCommerce : MultiDexApplication(), HasAndroidInjector, ApplicationLifecycleListener {
+    // TODO cardreader: Make implementation internal and use just the interface
+    val cardService: DummyCardReaderService = DummyCardReaderService()
     @Inject lateinit var androidInjector: DispatchingAndroidInjector<Any>
     @Inject lateinit var membersInjector: MembersInjector<WooCommerceGlideModule>
 
@@ -153,6 +156,11 @@ open class WooCommerce : MultiDexApplication(), HasAndroidInjector, ApplicationL
                 this, BuildConfig.ZENDESK_DOMAIN, BuildConfig.ZENDESK_APP_ID,
                 BuildConfig.ZENDESK_OAUTH_CLIENT_ID
         )
+    }
+
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        cardService.onTrimMemory(level)
     }
 
     /**
