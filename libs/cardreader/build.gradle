@@ -42,7 +42,7 @@ dependencies {
     androidTestImplementation "androidx.test.ext:junit:$jUnitExtVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$espressoVersion"
 
-    implementation "com.stripe:stripeterminal:1.0.17"
+    debugImplementation "com.stripe:stripeterminal:1.0.17"
 
     // Temporary dependencies - used just for the first few iterations
     implementation "com.squareup.okhttp3:okhttp:4.9.0"
