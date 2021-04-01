@@ -15,6 +15,7 @@ import com.woocommerce.android.viewmodel.MultiLiveEvent.Event.Exit
 import com.woocommerce.android.viewmodel.MultiLiveEvent.Event.ExitWithResult
 import com.woocommerce.android.viewmodel.SavedStateWithArgs
 import com.woocommerce.android.viewmodel.ScopedViewModel
+import kotlinx.android.parcel.IgnoredOnParcel
 import kotlinx.android.parcel.Parcelize
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -150,7 +151,12 @@ class ProductInventoryViewModel @AssistedInject constructor(
         val stockStatus: ProductStockStatus? = null,
         val stockQuantity: Double? = null,
         val backorderStatus: ProductBackorderStatus? = null
-    ) : Parcelable
+    ) : Parcelable {
+        // If the quantity is not whole decimal, make this field read-only
+        // because the API doesn't support updating decimal amount yet
+        @IgnoredOnParcel
+        val isStockQuantityEditable = stockQuantity?.rem(1)?.equals(0.0) == false
+    }
 
     @AssistedInject.Factory
     interface Factory : ViewModelAssistedFactory<ProductInventoryViewModel>
