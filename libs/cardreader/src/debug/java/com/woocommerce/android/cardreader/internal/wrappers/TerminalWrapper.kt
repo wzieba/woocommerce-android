@@ -15,6 +15,7 @@ import com.stripe.stripeterminal.model.external.DiscoveryConfiguration
 import com.stripe.stripeterminal.model.external.PaymentIntent
 import com.stripe.stripeterminal.model.external.PaymentIntentParameters
 import com.stripe.stripeterminal.model.external.Reader
+import com.stripe.stripeterminal.model.external.TerminalException
 import com.woocommerce.android.cardreader.internal.TokenProvider
 
 /**
@@ -32,9 +33,24 @@ internal class TerminalWrapper {
 
     fun discoverReaders(
         config: DiscoveryConfiguration,
-        discoveryListener: DiscoveryListener,
-        callback: Callback
-    ): Cancelable = Terminal.getInstance().discoverReaders(config, discoveryListener, callback)
+        onReadersDiscovered: (List<Reader>) -> Unit,
+        onSuccess: () -> Unit,
+        onFailure: (TerminalException) -> Unit
+    ): Cancelable {
+        return Terminal.getInstance().discoverReaders(config, object : DiscoveryListener {
+            override fun onUpdateDiscoveredReaders(readers: List<Reader>) {
+                onReadersDiscovered.invoke(readers)
+            }
+        }, object : Callback {
+            override fun onFailure(e: TerminalException) {
+                onFailure.invoke(e)
+            }
+
+            override fun onSuccess() {
+                onSuccess.invoke()
+            }
+        })
+    }
 
     fun connectToReader(reader: Reader, callback: ReaderCallback) =
         Terminal.getInstance().connectReader(reader, callback)

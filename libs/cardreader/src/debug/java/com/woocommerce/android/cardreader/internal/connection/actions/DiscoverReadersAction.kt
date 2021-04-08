@@ -2,7 +2,6 @@ package com.woocommerce.android.cardreader.internal.connection.actions
 
 import com.stripe.stripeterminal.callable.Callback
 import com.stripe.stripeterminal.callable.Cancelable
-import com.stripe.stripeterminal.callable.DiscoveryListener
 import com.stripe.stripeterminal.model.external.DeviceType.CHIPPER_2X
 import com.stripe.stripeterminal.model.external.DiscoveryConfiguration
 import com.stripe.stripeterminal.model.external.Reader
@@ -34,21 +33,19 @@ internal class DiscoverReadersAction(private val terminal: TerminalWrapper) {
             val config = DiscoveryConfiguration(DISCOVERY_TIMEOUT_IN_SECONDS, CHIPPER_2X, isSimulated)
             var cancelable: Cancelable? = null
             try {
-                cancelable = terminal.discoverReaders(config, object : DiscoveryListener {
-                    override fun onUpdateDiscoveredReaders(readers: List<Reader>) {
+                cancelable = terminal.discoverReaders(config,
+                    onReadersDiscovered = { readers ->
                         this@callbackFlow.sendBlocking(FoundReaders(readers))
-                    }
-                }, object : Callback {
-                    override fun onFailure(e: TerminalException) {
+                    },
+                    onSuccess = {
+                        this@callbackFlow.sendBlocking(Success)
+                        this@callbackFlow.close()
+                    },
+                    onFailure = { e ->
                         this@callbackFlow.sendBlocking(Failure(e))
                         this@callbackFlow.close()
                     }
-
-                    override fun onSuccess() {
-                        this@callbackFlow.sendBlocking(Success)
-                        this@callbackFlow.close()
-                    }
-                })
+                )
                 awaitClose()
             } finally {
                 cancelable?.takeIf { !it.isCompleted }?.cancel(noopCallback)

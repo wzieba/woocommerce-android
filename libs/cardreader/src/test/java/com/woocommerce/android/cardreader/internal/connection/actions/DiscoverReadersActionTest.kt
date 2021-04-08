@@ -5,10 +5,9 @@ import com.nhaarman.mockitokotlin2.mock
 import com.nhaarman.mockitokotlin2.never
 import com.nhaarman.mockitokotlin2.verify
 import com.nhaarman.mockitokotlin2.whenever
-import com.stripe.stripeterminal.callable.Callback
 import com.stripe.stripeterminal.callable.Cancelable
-import com.stripe.stripeterminal.callable.DiscoveryListener
 import com.stripe.stripeterminal.model.external.Reader
+import com.stripe.stripeterminal.model.external.TerminalException
 import com.woocommerce.android.cardreader.internal.connection.actions.DiscoverReadersAction.DiscoverReadersStatus.Failure
 import com.woocommerce.android.cardreader.internal.connection.actions.DiscoverReadersAction.DiscoverReadersStatus.FoundReaders
 import com.woocommerce.android.cardreader.internal.connection.actions.DiscoverReadersAction.DiscoverReadersStatus.Started
@@ -41,7 +40,7 @@ class DiscoverReadersActionTest {
 
     @Test
     fun `when discovery started, then Started is emitted`() = runBlockingTest {
-        whenever(terminal.discoverReaders(any(), any(), any())).thenAnswer {
+        whenever(terminal.discoverReaders(any(), any(), any(), any())).thenAnswer {
             mock<Cancelable>()
         }
 
@@ -52,7 +51,7 @@ class DiscoverReadersActionTest {
 
     @Test
     fun `when nearby readers found, then FoundReaders is emitted`() = runBlockingTest {
-        whenever(terminal.discoverReaders(any(), any(), any())).thenAnswer {
+        whenever(terminal.discoverReaders(any(), any(), any(), any())).thenAnswer {
             onUpdateDiscoveredReaders(args = it.arguments, readers = listOf(mock()))
             mock<Cancelable>()
         }
@@ -65,7 +64,7 @@ class DiscoverReadersActionTest {
 
     @Test
     fun `when reader discover succeeds, then Success is emitted`() = runBlockingTest {
-        whenever(terminal.discoverReaders(any(), any(), any())).thenAnswer {
+        whenever(terminal.discoverReaders(any(), any(), any(), any())).thenAnswer {
             onSuccess(args = it.arguments)
             mock<Cancelable>()
         }
@@ -78,7 +77,7 @@ class DiscoverReadersActionTest {
 
     @Test
     fun `when reader discover fails, then Failure is emitted`() = runBlockingTest {
-        whenever(terminal.discoverReaders(any(), any(), any())).thenAnswer {
+        whenever(terminal.discoverReaders(any(), any(), any(), any())).thenAnswer {
             onFailure(it.arguments)
             mock<Cancelable>()
         }
@@ -91,7 +90,7 @@ class DiscoverReadersActionTest {
 
     @Test
     fun `when reader discover succeeds, then flow is terminated`() = runBlockingTest {
-        whenever(terminal.discoverReaders(any(), any(), any())).thenAnswer {
+        whenever(terminal.discoverReaders(any(), any(), any(), any())).thenAnswer {
             onSuccess(args = it.arguments)
             mock<Cancelable>()
         }
@@ -104,7 +103,7 @@ class DiscoverReadersActionTest {
 
     @Test
     fun `when reader discover fails, then flow is terminated`() = runBlockingTest {
-        whenever(terminal.discoverReaders(any(), any(), any())).thenAnswer {
+        whenever(terminal.discoverReaders(any(), any(), any(), any())).thenAnswer {
             onFailure(it.arguments)
             mock<Cancelable>()
         }
@@ -119,7 +118,7 @@ class DiscoverReadersActionTest {
     fun `given flow not terminated, when job canceled, then reader discovery gets canceled`() = runBlockingTest {
         val cancelable = mock<Cancelable>()
         whenever(cancelable.isCompleted).thenReturn(false)
-        whenever(terminal.discoverReaders(any(), any(), any())).thenAnswer { cancelable }
+        whenever(terminal.discoverReaders(any(), any(), any(), any())).thenAnswer { cancelable }
         val job = launch {
             action.discoverReaders(false).collect { }
         }
@@ -134,7 +133,7 @@ class DiscoverReadersActionTest {
     fun `given flow already terminated, when job canceled, then reader discovery not canceled`() = runBlockingTest {
         val cancelable = mock<Cancelable>()
         whenever(cancelable.isCompleted).thenReturn(true)
-        whenever(terminal.discoverReaders(any(), any(), any())).thenAnswer {
+        whenever(terminal.discoverReaders(any(), any(), any(), any())).thenAnswer {
             onSuccess(it.arguments)
             cancelable
         }
@@ -150,7 +149,7 @@ class DiscoverReadersActionTest {
 
     @Test
     fun `given last event is terminal, when multiple events emitted, then flow terminates`() = runBlockingTest {
-        whenever(terminal.discoverReaders(any(), any(), any())).thenAnswer {
+        whenever(terminal.discoverReaders(any(), any(), any(), any())).thenAnswer {
             onUpdateDiscoveredReaders(args = it.arguments, readers = listOf(mock()))
             onUpdateDiscoveredReaders(args = it.arguments, readers = listOf(mock()))
             onFailure(it.arguments)
@@ -166,7 +165,7 @@ class DiscoverReadersActionTest {
     @Test(expected = ClosedSendChannelException::class)
     fun `given more events emitted, when terminal event already processed, then exception is thrown`() =
         runBlockingTest {
-            whenever(terminal.discoverReaders(any(), any(), any())).thenAnswer {
+            whenever(terminal.discoverReaders(any(), any(), any(), any())).thenAnswer {
                 onSuccess(it.arguments)
                 onUpdateDiscoveredReaders(args = it.arguments, readers = listOf())
                 mock<Cancelable>()
@@ -176,16 +175,20 @@ class DiscoverReadersActionTest {
         }
 
     private fun onUpdateDiscoveredReaders(args: Array<Any>, readers: List<Reader>) {
-        args.filterIsInstance<DiscoveryListener>().first().onUpdateDiscoveredReaders(readers)
+        (args[1] as onReadersFoundCallback).invoke(readers)
     }
 
     private fun onSuccess(args: Array<Any>) {
-        args.filterIsInstance<Callback>().first().onSuccess()
+        (args[2] as onSuccessCallback).invoke()
     }
 
     private fun onFailure(args: Array<Any>) {
-        args.filterIsInstance<Callback>().first().onFailure(mock())
+        (args[3] as onFailureCallback).invoke(mock())
     }
 
     private fun <T> Flow<T>.ignoreStartedEvent(): Flow<T> = filterNot { it is Started }
 }
+
+private typealias onReadersFoundCallback = (List<Reader>) -> Unit
+private typealias onFailureCallback = (TerminalException) -> Unit
+private typealias onSuccessCallback = () -> Unit
