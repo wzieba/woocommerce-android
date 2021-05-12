@@ -69,6 +69,7 @@ import dagger.android.DispatchingAndroidInjector
 import dagger.android.HasAndroidInjector
 import dagger.hilt.android.AndroidEntryPoint
 import org.wordpress.android.fluxc.model.order.OrderIdentifier
+import org.wordpress.android.fluxc.model.user.WCUserModel
 import org.wordpress.android.login.LoginAnalyticsListener
 import org.wordpress.android.login.LoginMode
 import org.wordpress.android.util.NetworkUtils
@@ -531,6 +532,10 @@ class MainActivity : AppUpgradeActivity(),
         LoginMode.WOO_LOGIN_MODE.putInto(intent)
         startActivityForResult(intent, RequestCodes.ADD_ACCOUNT)
         finish()
+    }
+
+    override fun showUserEligibilityErrorScreen(userModel: WCUserModel?) {
+        TODO("Not yet implemented")
     }
 
     /**

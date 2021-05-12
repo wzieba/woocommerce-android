@@ -13,6 +13,8 @@ import com.woocommerce.android.tools.ProductImageMap.RequestFetchProductEvent
 import com.woocommerce.android.tools.SelectedSite
 import com.woocommerce.android.tools.SelectedSite.SelectedSiteChangedEvent
 import com.woocommerce.android.util.WooLog
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import org.greenrobot.eventbus.Subscribe
 import org.greenrobot.eventbus.ThreadMode
 import org.wordpress.android.fluxc.Dispatcher
@@ -26,6 +28,7 @@ import org.wordpress.android.fluxc.generated.WCOrderActionBuilder
 import org.wordpress.android.fluxc.generated.WCProductActionBuilder
 import org.wordpress.android.fluxc.model.SiteModel
 import org.wordpress.android.fluxc.model.notification.NotificationModel
+import org.wordpress.android.fluxc.model.user.WCUserModel
 import org.wordpress.android.fluxc.network.rest.wpcom.wc.order.CoreOrderStatus.PROCESSING
 import org.wordpress.android.fluxc.store.AccountStore
 import org.wordpress.android.fluxc.store.AccountStore.OnAccountChanged
@@ -40,6 +43,7 @@ import org.wordpress.android.fluxc.store.WCOrderStore.FetchOrdersCountPayload
 import org.wordpress.android.fluxc.store.WCOrderStore.FetchOrdersPayload
 import org.wordpress.android.fluxc.store.WCOrderStore.OnOrderChanged
 import org.wordpress.android.fluxc.store.WCProductStore
+import org.wordpress.android.fluxc.store.WCUserStore
 import org.wordpress.android.fluxc.store.WooCommerceStore
 import javax.inject.Inject
 
@@ -50,7 +54,8 @@ class MainPresenter @Inject constructor(
     private val wooCommerceStore: WooCommerceStore,
     private val notificationStore: NotificationStore,
     private val selectedSite: SelectedSite,
-    private val productImageMap: ProductImageMap
+    private val productImageMap: ProductImageMap,
+    private val userStore: WCUserStore
 ) : MainContract.Presenter {
     private var mainView: MainContract.View? = null
 
@@ -107,6 +112,25 @@ class MainPresenter @Inject constructor(
         isFetchingSitesAfterDowngrade = true
         mainView?.showProgressDialog(R.string.loading_stores)
         dispatcher.dispatch(SiteActionBuilder.newFetchSitesAction(FetchSitesPayload()))
+    }
+
+    /**
+     * Methods checks if the current user has access to view the app.
+     * Woo APIs only supports ADMIN and SHOP_MANAGER role so the app also follows the same logic.
+     */
+    override suspend fun initiateUserEligibilityCheck() {
+        withContext(Dispatchers.Main) {
+            val userModel = fetchUserInfo()
+            if (userModel?.roles?.none { it.isSupported() } == true) {
+                mainView?.showUserEligibilityErrorScreen(userModel)
+            }
+        }
+    }
+
+    private suspend fun fetchUserInfo(): WCUserModel? {
+        return withContext(Dispatchers.Default) {
+            userStore.fetchUserRole(selectedSite.get())
+        }.model
     }
 
     @Suppress("unused")

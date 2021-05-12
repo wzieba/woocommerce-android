@@ -6,6 +6,7 @@ import com.woocommerce.android.ui.base.BaseView
 import com.woocommerce.android.ui.base.TopLevelFragmentRouter
 import org.wordpress.android.fluxc.model.SiteModel
 import org.wordpress.android.fluxc.model.notification.NotificationModel
+import org.wordpress.android.fluxc.model.user.WCUserModel
 
 interface MainContract {
     interface Presenter : BasePresenter<View> {
@@ -16,6 +17,7 @@ interface MainContract {
         fun selectedSiteChanged(site: SiteModel)
         fun fetchUnfilledOrderCount()
         fun fetchSitesAfterDowngrade()
+        suspend fun initiateUserEligibilityCheck()
     }
 
     interface View : BaseView<Presenter>, TopLevelFragmentRouter {
@@ -34,5 +36,6 @@ interface MainContract {
         fun updateOrderBadge(hideCountUntilComplete: Boolean)
         fun hideProgressDialog()
         fun showProgressDialog(@StringRes stringId: Int)
+        fun showUserEligibilityErrorScreen(userModel: WCUserModel?)
     }
 }

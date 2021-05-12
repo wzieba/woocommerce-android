@@ -12,6 +12,10 @@ import com.nhaarman.mockitokotlin2.whenever
 import com.woocommerce.android.tools.ProductImageMap
 import com.woocommerce.android.tools.SelectedSite
 import com.woocommerce.android.util.FeatureFlag
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.setMain
 import org.junit.Before
 import org.junit.Test
 import org.wordpress.android.fluxc.Dispatcher
@@ -19,6 +23,15 @@ import org.wordpress.android.fluxc.action.AccountAction
 import org.wordpress.android.fluxc.action.WCOrderAction.FETCH_ORDERS_COUNT
 import org.wordpress.android.fluxc.annotations.action.Action
 import org.wordpress.android.fluxc.model.SiteModel
+import org.wordpress.android.fluxc.model.user.WCUserModel
+import org.wordpress.android.fluxc.model.user.WCUserRole.ADMINISTRATOR
+import org.wordpress.android.fluxc.model.user.WCUserRole.AUTHOR
+import org.wordpress.android.fluxc.model.user.WCUserRole.CUSTOMER
+import org.wordpress.android.fluxc.model.user.WCUserRole.SHOP_MANAGER
+import org.wordpress.android.fluxc.network.BaseRequest.GenericErrorType
+import org.wordpress.android.fluxc.network.rest.wpcom.wc.WooError
+import org.wordpress.android.fluxc.network.rest.wpcom.wc.WooErrorType
+import org.wordpress.android.fluxc.network.rest.wpcom.wc.WooResult
 import org.wordpress.android.fluxc.network.rest.wpcom.wc.order.CoreOrderStatus
 import org.wordpress.android.fluxc.store.AccountStore
 import org.wordpress.android.fluxc.store.AccountStore.OnAuthenticationChanged
@@ -28,6 +41,7 @@ import org.wordpress.android.fluxc.store.SiteStore.OnSiteChanged
 import org.wordpress.android.fluxc.store.WCOrderStore.FetchOrdersCountPayload
 import org.wordpress.android.fluxc.store.WCOrderStore.OnOrderChanged
 import org.wordpress.android.fluxc.store.WCOrderStore.OrderError
+import org.wordpress.android.fluxc.store.WCUserStore
 import org.wordpress.android.fluxc.store.WooCommerceStore
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -41,6 +55,7 @@ class MainPresenterTest {
     private val siteStore: SiteStore = mock()
     private val wooCommerceStore: WooCommerceStore = mock()
     private val notificationStore: NotificationStore = mock()
+    private val userStore: WCUserStore = mock()
     private val selectedSite: SelectedSite = mock()
     private val productImageMap: ProductImageMap = mock()
 
@@ -49,6 +64,7 @@ class MainPresenterTest {
     private lateinit var actionCaptor: KArgumentCaptor<Action<*>>
 
     @Before
+    @ExperimentalCoroutinesApi
     fun setup() {
         mainPresenter = spy(
                 MainPresenter(
@@ -58,13 +74,15 @@ class MainPresenterTest {
                         wooCommerceStore,
                         notificationStore,
                         selectedSite,
-                        productImageMap
+                        productImageMap,
+                        userStore
                 )
         )
         mainPresenter.takeView(mainContractView)
         doReturn(SiteModel()).whenever(selectedSite).get()
         doReturn(true).whenever(selectedSite).exists()
         actionCaptor = argumentCaptor()
+        Dispatchers.setMain(Dispatchers.Unconfined)
     }
 
     @Test
@@ -169,5 +187,58 @@ class MainPresenterTest {
             mainPresenter.onSiteChanged(OnSiteChanged(1))
             verify(mainContractView).updateSelectedSite()
         }
+    }
+
+    @Test
+    fun `Displays user eligibility error screen only if user role is not supported`() = runBlocking {
+        val ineligibleUser = WCUserModel(
+            id = 1,
+            firstName = "Anitaa",
+            lastName = "Murthy",
+            username = "murthyanitaa",
+            email = "reallychumma1@gmail.com",
+            roles = listOf(AUTHOR, CUSTOMER)
+        )
+        doReturn(WooResult(ineligibleUser)).whenever(userStore).fetchUserRole(any())
+
+        mainPresenter.takeView(mainContractView)
+        mainPresenter.initiateUserEligibilityCheck()
+
+        verify(userStore, times(1)).fetchUserRole(any())
+        verify(mainContractView, times(1)).showUserEligibilityErrorScreen(ineligibleUser)
+    }
+
+    @Test
+    fun `Do not display user eligibility error screen if user role is supported`() = runBlocking {
+        val eligibleUser = WCUserModel(
+            id = 1,
+            firstName = "Anitaa",
+            lastName = "Murthy",
+            username = "murthyanitaa",
+            email = "reallychumma1@gmail.com",
+            roles = listOf(ADMINISTRATOR, SHOP_MANAGER)
+        )
+        doReturn(WooResult(eligibleUser)).whenever(userStore).fetchUserRole(any())
+
+        mainPresenter.takeView(mainContractView)
+        mainPresenter.initiateUserEligibilityCheck()
+
+        verify(userStore, times(1)).fetchUserRole(any())
+        verify(mainContractView, times(0)).showUserEligibilityErrorScreen(eligibleUser)
+    }
+
+    @Test
+    fun `Do not display user eligibility error screen if error fetching user role`() = runBlocking {
+        doReturn(
+            WooResult<WooError>(
+                WooError(WooErrorType.GENERIC_ERROR, GenericErrorType.UNKNOWN)
+            ))
+            .whenever(userStore).fetchUserRole(any())
+
+        mainPresenter.takeView(mainContractView)
+        mainPresenter.initiateUserEligibilityCheck()
+
+        verify(userStore, times(1)).fetchUserRole(any())
+        verify(mainContractView, times(0)).showUserEligibilityErrorScreen(any())
     }
 }
