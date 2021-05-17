@@ -1,6 +1,7 @@
 package com.woocommerce.android.ui.main
 
 import androidx.annotation.StringRes
+import com.woocommerce.android.model.User
 import com.woocommerce.android.ui.base.BasePresenter
 import com.woocommerce.android.ui.base.BaseView
 import com.woocommerce.android.ui.base.TopLevelFragmentRouter
@@ -36,6 +37,6 @@ interface MainContract {
         fun updateOrderBadge(hideCountUntilComplete: Boolean)
         fun hideProgressDialog()
         fun showProgressDialog(@StringRes stringId: Int)
-        fun showUserEligibilityErrorScreen(userModel: WCUserModel?)
+        fun showUserEligibilityErrorScreen(user: User?)
     }
 }

@@ -3,6 +3,7 @@ package com.woocommerce.android.ui.main
 import com.woocommerce.android.R
 import com.woocommerce.android.analytics.AnalyticsTracker
 import com.woocommerce.android.analytics.AnalyticsTracker.Stat
+import com.woocommerce.android.model.toAppModel
 import com.woocommerce.android.network.ConnectionChangeReceiver
 import com.woocommerce.android.network.ConnectionChangeReceiver.ConnectionChangeEvent
 import com.woocommerce.android.push.NotificationHandler.NotificationChannelType.NEW_ORDER
@@ -122,7 +123,7 @@ class MainPresenter @Inject constructor(
         withContext(Dispatchers.Main) {
             val userModel = fetchUserInfo()
             if (userModel?.roles?.none { it.isSupported() } == true) {
-                mainView?.showUserEligibilityErrorScreen(userModel)
+                mainView?.showUserEligibilityErrorScreen(userModel.toAppModel())
             }
         }
     }

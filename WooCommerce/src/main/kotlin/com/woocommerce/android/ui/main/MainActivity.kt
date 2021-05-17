@@ -37,6 +37,7 @@ import com.woocommerce.android.extensions.getCommentId
 import com.woocommerce.android.extensions.getRemoteOrderId
 import com.woocommerce.android.extensions.getWooType
 import com.woocommerce.android.extensions.navigateSafely
+import com.woocommerce.android.model.User
 import com.woocommerce.android.navigation.KeepStateNavigator
 import com.woocommerce.android.push.NotificationHandler
 import com.woocommerce.android.push.NotificationHandler.NotificationChannelType
@@ -69,7 +70,6 @@ import dagger.android.DispatchingAndroidInjector
 import dagger.android.HasAndroidInjector
 import dagger.hilt.android.AndroidEntryPoint
 import org.wordpress.android.fluxc.model.order.OrderIdentifier
-import org.wordpress.android.fluxc.model.user.WCUserModel
 import org.wordpress.android.login.LoginAnalyticsListener
 import org.wordpress.android.login.LoginMode
 import org.wordpress.android.util.NetworkUtils
@@ -534,7 +534,7 @@ class MainActivity : AppUpgradeActivity(),
         finish()
     }
 
-    override fun showUserEligibilityErrorScreen(userModel: WCUserModel?) {
+    override fun showUserEligibilityErrorScreen(user: User?) {
         TODO("Not yet implemented")
     }
 

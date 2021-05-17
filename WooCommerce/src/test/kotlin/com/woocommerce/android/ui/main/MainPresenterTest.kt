@@ -9,6 +9,7 @@ import com.nhaarman.mockitokotlin2.spy
 import com.nhaarman.mockitokotlin2.times
 import com.nhaarman.mockitokotlin2.verify
 import com.nhaarman.mockitokotlin2.whenever
+import com.woocommerce.android.model.toAppModel
 import com.woocommerce.android.tools.ProductImageMap
 import com.woocommerce.android.tools.SelectedSite
 import com.woocommerce.android.util.FeatureFlag
@@ -205,7 +206,7 @@ class MainPresenterTest {
         mainPresenter.initiateUserEligibilityCheck()
 
         verify(userStore, times(1)).fetchUserRole(any())
-        verify(mainContractView, times(1)).showUserEligibilityErrorScreen(ineligibleUser)
+        verify(mainContractView, times(1)).showUserEligibilityErrorScreen(ineligibleUser.toAppModel())
     }
 
     @Test
@@ -224,7 +225,7 @@ class MainPresenterTest {
         mainPresenter.initiateUserEligibilityCheck()
 
         verify(userStore, times(1)).fetchUserRole(any())
-        verify(mainContractView, times(0)).showUserEligibilityErrorScreen(eligibleUser)
+        verify(mainContractView, times(0)).showUserEligibilityErrorScreen(eligibleUser.toAppModel())
     }
 
     @Test
