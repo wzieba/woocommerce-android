@@ -224,6 +224,11 @@ class MainActivity : AppUpgradeActivity(),
             return
         }
 
+        if (!presenter.isUserEligible()) {
+            showUserEligibilityErrorScreen()
+            return
+        }
+
         initFragment(savedInstanceState)
 
         // show the app rating dialog if it's time
@@ -545,6 +550,10 @@ class MainActivity : AppUpgradeActivity(),
         AnalyticsTracker.track(Stat.MAIN_MENU_SETTINGS_TAPPED)
         val intent = Intent(this, AppSettingsActivity::class.java)
         startActivityForResult(intent, RequestCodes.SETTINGS)
+    }
+
+    override fun showUserEligibilityErrorScreen() {
+        // TODO: will be implemented in a separate commit
     }
 
     override fun updateSelectedSite() {
