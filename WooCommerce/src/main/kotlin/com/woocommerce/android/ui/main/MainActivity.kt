@@ -553,7 +553,8 @@ class MainActivity : AppUpgradeActivity(),
     }
 
     override fun showUserEligibilityErrorScreen() {
-        // TODO: will be implemented in a separate commit
+        val action = NavGraphMainDirections.actionGlobalUserEligibilityErrorFragment()
+        navController.navigateSafely(action)
     }
 
     override fun updateSelectedSite() {
