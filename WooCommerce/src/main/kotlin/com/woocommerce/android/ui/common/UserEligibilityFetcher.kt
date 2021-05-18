@@ -24,8 +24,11 @@ class UserEligibilityFetcher @Inject constructor(
     fun fetchUserEligibility() {
         launch(Dispatchers.Default) {
             val requestResult = userStore.fetchUserRole(selectedSite.get())
-            val isUserEligible = requestResult.model?.roles?.none { it.isSupported() } == false
-            appPrefs.setIsUserEligible(isUserEligible)
+            requestResult.model?.let { user ->
+                val isUserEligible = user.roles.none { it.isSupported() }
+                appPrefs.setIsUserEligible(isUserEligible)
+                appPrefs.setUserEmail(user.email)
+            }
         }
     }
 }
