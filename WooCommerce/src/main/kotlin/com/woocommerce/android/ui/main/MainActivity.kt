@@ -37,7 +37,9 @@ import com.woocommerce.android.extensions.active
 import com.woocommerce.android.extensions.getCommentId
 import com.woocommerce.android.extensions.getRemoteOrderId
 import com.woocommerce.android.extensions.getWooType
+import com.woocommerce.android.extensions.hide
 import com.woocommerce.android.extensions.navigateSafely
+import com.woocommerce.android.extensions.show
 import com.woocommerce.android.navigation.KeepStateNavigator
 import com.woocommerce.android.push.NotificationHandler
 import com.woocommerce.android.push.NotificationHandler.NotificationChannelType
@@ -236,6 +238,8 @@ class MainActivity : AppUpgradeActivity(),
 
         // show the app rating dialog if it's time
         AppRatingDialog.showIfNeeded(this)
+
+        showStoreNameSubtitle(binding.bottomNav.currentPosition == MY_STORE)
 
         // check for any new app updates only after the user has logged into the app (release builds only)
         if (!BuildConfig.DEBUG) {
@@ -461,6 +465,25 @@ class MainActivity : AppUpgradeActivity(),
         previousDestinationId = destination.id
     }
 
+    private fun showStoreNameSubtitle(show: Boolean) {
+        if (show) {
+            binding.subtitle.show()
+            binding.subtitle.text = getStoreName()
+        } else {
+            binding.subtitle.hide()
+        }
+    }
+    private fun getStoreName(): String? {
+        selectedSite.getIfExists()?.let { site ->
+            if (!site.displayName.isNullOrBlank()) {
+                return site.displayName
+            } else if (!site.name.isNullOrBlank()) {
+                return site.name
+            }
+        }
+        return null
+    }
+
     override fun setTitle(title: CharSequence?) {
         super.setTitle(title)
         binding.collapsingToolbar.title = title
@@ -648,6 +671,9 @@ class MainActivity : AppUpgradeActivity(),
         } else if (navPos == ORDERS) {
             NotificationHandler.removeAllOrderNotifsFromSystemBar(this)
         }
+
+        // show the store name subtitle only for the "My Store" fragment
+        showStoreNameSubtitle(navPos == MY_STORE)
     }
 
     override fun onNavItemReselected(navPos: BottomNavigationPosition) {

@@ -39,9 +39,10 @@
                     style="@style/Woo.TextView.Body2"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:maxLines="1"
                     android:layout_gravity="bottom"
-                    android:text="Subtitle" />
+                    android:maxLines="1"
+                    app:layout_collapseMode="parallax"
+                    tools:text="Subtitle" />
             </com.google.android.material.appbar.CollapsingToolbarLayout>
         </com.google.android.material.appbar.AppBarLayout>
 
