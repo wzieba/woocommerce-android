@@ -9,6 +9,7 @@ import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
+import android.view.ViewGroup.MarginLayoutParams
 import android.view.WindowManager
 import androidx.annotation.StringRes
 import androidx.appcompat.app.AppCompatDelegate
@@ -190,6 +191,8 @@ class MainActivity : AppUpgradeActivity(),
         toolbar = binding.toolbar.toolbar
         setSupportActionBar(toolbar)
         toolbar.navigationIcon = null
+
+        (binding.subtitle.layoutParams as MarginLayoutParams).marginStart = toolbar.contentInsetStart
 
         presenter.takeView(this)
 

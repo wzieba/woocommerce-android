@@ -27,11 +27,21 @@
                 style="@style/Woo.CollapsedToolbarLayout"
                 android:layout_width="match_parent"
                 android:layout_height="@dimen/expanded_toolbar_height"
+                app:layout_scrollFlags="scroll|exitUntilCollapsed"
                 app:titleEnabled="true">
 
                 <include
                     android:id="@+id/toolbar"
                     layout="@layout/view_toolbar" />
+
+                <com.google.android.material.textview.MaterialTextView
+                    android:id="@+id/subtitle"
+                    style="@style/Woo.TextView.Body2"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:maxLines="1"
+                    android:layout_gravity="bottom"
+                    android:text="Subtitle" />
             </com.google.android.material.appbar.CollapsingToolbarLayout>
         </com.google.android.material.appbar.AppBarLayout>
 
