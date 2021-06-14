@@ -748,7 +748,7 @@
     <string name="new_notifications">%d new notifications</string>
     <string name="more_notifications">and %d more.</string>
     <string name="new_order_notification_title">You have %1$d new orders</string>
-    <string name="new_review_notification_title">You have %1$d new reviews</string>
+    <string name="new_review_notification_title">You have 1 new review</string>
     <!--
         Product Review Detail
     -->

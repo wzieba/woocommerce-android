@@ -25,6 +25,7 @@ import com.woocommerce.android.analytics.AnalyticsTracker
 import com.woocommerce.android.analytics.AnalyticsTracker.Stat
 import com.woocommerce.android.extensions.getOrderNotificationMsg
 import com.woocommerce.android.extensions.getOrderNotificationTitle
+import com.woocommerce.android.extensions.getReviewNotificationMsg
 import com.woocommerce.android.push.NotificationHandler.NotificationChannelType.NEW_ORDER
 import com.woocommerce.android.push.NotificationHandler.NotificationChannelType.OTHER
 import com.woocommerce.android.push.NotificationHandler.NotificationChannelType.REVIEW
@@ -290,14 +291,13 @@ class NotificationHandler @Inject constructor(
         val title = if (noteType == NEW_ORDER) {
             notificationModel?.getOrderNotificationTitle() ?: context.getString(R.string.app_name)
         } else {
-            StringEscapeUtils.unescapeHtml4(data.getString(PUSH_ARG_TITLE))
-                    ?: context.getString(R.string.app_name)
+            context.getString(R.string.new_review_notification_title)
         }
 
         val message = if (noteType == NEW_ORDER) {
             notificationModel?.getOrderNotificationMsg()
         } else {
-            StringEscapeUtils.unescapeHtml4(data.getString(PUSH_ARG_MSG))
+            notificationModel?.getReviewNotificationMsg()
         }
 
         // New order notifications have the same notification_note_id. So if there is a new incoming notification
