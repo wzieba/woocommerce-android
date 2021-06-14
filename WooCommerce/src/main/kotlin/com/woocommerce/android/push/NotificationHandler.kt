@@ -23,6 +23,8 @@ import com.woocommerce.android.AppPrefs
 import com.woocommerce.android.R
 import com.woocommerce.android.analytics.AnalyticsTracker
 import com.woocommerce.android.analytics.AnalyticsTracker.Stat
+import com.woocommerce.android.extensions.getOrderNotificationMsg
+import com.woocommerce.android.extensions.getOrderNotificationTitle
 import com.woocommerce.android.push.NotificationHandler.NotificationChannelType.NEW_ORDER
 import com.woocommerce.android.push.NotificationHandler.NotificationChannelType.OTHER
 import com.woocommerce.android.push.NotificationHandler.NotificationChannelType.REVIEW
@@ -266,13 +268,13 @@ class NotificationHandler @Inject constructor(
 
         // Build notification from message data, save to the database, and send request to
         // fetch the actual notification from the api.
-        NotificationsUtils.buildNotificationModelFromBundle(data)?.let {
+        val notificationModel = NotificationsUtils.buildNotificationModelFromBundle(data)?.apply {
             // Save temporary notification to the database.
-            dispatcher.dispatch(NotificationActionBuilder.newUpdateNotificationAction(it))
+            dispatcher.dispatch(NotificationActionBuilder.newUpdateNotificationAction(this))
 
             // Fire off the event to fetch the actual notification from the api
             dispatcher.dispatch(NotificationActionBuilder
-                    .newFetchNotificationAction(FetchNotificationPayload(it.remoteNoteId)))
+                    .newFetchNotificationAction(FetchNotificationPayload(this.remoteNoteId)))
         }
 
         // don't display the notification if user chose to disable this type of notification - note
@@ -286,15 +288,17 @@ class NotificationHandler @Inject constructor(
         }
 
         val title = if (noteType == NEW_ORDER) {
-            // New order notifications have title 'WordPress.com' - just show the app name instead
-            // TODO Consider revising this, perhaps use the contents of the note as the title/body of the notification
-            context.getString(R.string.app_name)
+            notificationModel?.getOrderNotificationTitle() ?: context.getString(R.string.app_name)
         } else {
             StringEscapeUtils.unescapeHtml4(data.getString(PUSH_ARG_TITLE))
                     ?: context.getString(R.string.app_name)
         }
 
-        val message = StringEscapeUtils.unescapeHtml4(data.getString(PUSH_ARG_MSG))
+        val message = if (noteType == NEW_ORDER) {
+            notificationModel?.getOrderNotificationMsg()
+        } else {
+            StringEscapeUtils.unescapeHtml4(data.getString(PUSH_ARG_MSG))
+        }
 
         // New order notifications have the same notification_note_id. So if there is a new incoming notification
         // when there is an existing new order notification in the notification tray,
@@ -538,6 +542,12 @@ class NotificationHandler @Inject constructor(
                 )
             }
 
+            val title = if (noteType == NEW_ORDER) {
+                String.format(context.getString(R.string.new_order_notification_title), notesMap.size)
+            } else {
+                String.format(context.getString(R.string.new_review_notification_title), notesMap.size)
+            }
+
             val subject = String.format(context.getString(R.string.new_notifications), notesMap.size)
             val groupBuilder = NotificationCompat.Builder(context, getChannelIdForNoteType(context, noteType))
                     .setGroupAlertBehavior(NotificationCompat.GROUP_ALERT_CHILDREN)
@@ -547,7 +557,7 @@ class NotificationHandler @Inject constructor(
                     .setGroupSummary(true)
                     .setAutoCancel(true)
                     .setTicker(message)
-                    .setContentTitle(context.getString(R.string.app_name))
+                    .setContentTitle(title)
                     .setContentText(subject)
                     .setStyle(inboxStyle)
                     .setSound(null)

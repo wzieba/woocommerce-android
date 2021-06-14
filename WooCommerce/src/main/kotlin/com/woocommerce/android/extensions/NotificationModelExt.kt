@@ -177,6 +177,10 @@ fun NotificationModel.isApproved(): Boolean {
     } ?: return false
 }
 
+fun NotificationModel.getOrderNotificationTitle() = this.subject?.get(0)?.text
+
+fun NotificationModel.getOrderNotificationMsg() = this.subject?.get(1)?.text
+
 /**
  * If true, user can mark this notification as spam.
  */
