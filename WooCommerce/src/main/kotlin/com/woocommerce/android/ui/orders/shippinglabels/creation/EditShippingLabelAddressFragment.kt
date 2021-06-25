@@ -37,7 +37,6 @@ import com.woocommerce.android.ui.orders.shippinglabels.creation.CreateShippingL
 import com.woocommerce.android.ui.orders.shippinglabels.creation.CreateShippingLabelEvent.ShowSuggestedAddress
 import com.woocommerce.android.ui.orders.shippinglabels.creation.ShippingLabelAddressSuggestionFragment.Companion.SELECTED_ADDRESS_ACCEPTED
 import com.woocommerce.android.ui.orders.shippinglabels.creation.ShippingLabelAddressSuggestionFragment.Companion.SELECTED_ADDRESS_TO_BE_EDITED
-import com.woocommerce.android.util.FeatureFlag
 import com.woocommerce.android.viewmodel.MultiLiveEvent.Event.Exit
 import com.woocommerce.android.viewmodel.MultiLiveEvent.Event.ExitWithResult
 import com.woocommerce.android.viewmodel.MultiLiveEvent.Event.ShowSnackbar
@@ -49,14 +48,15 @@ import org.wordpress.android.util.ToastUtils
 import javax.inject.Inject
 
 @AndroidEntryPoint
-class EditShippingLabelAddressFragment
-    : BaseFragment(R.layout.fragment_edit_shipping_label_address), BackPressListener {
+class EditShippingLabelAddressFragment : BaseFragment(R.layout.fragment_edit_shipping_label_address),
+    BackPressListener {
     companion object {
         const val SELECT_COUNTRY_REQUEST = "select_country_request"
         const val SELECT_STATE_REQUEST = "select_state_request"
         const val EDIT_ADDRESS_RESULT = "key_edit_address_dialog_result"
         const val EDIT_ADDRESS_CLOSED = "key_edit_address_dialog_closed"
     }
+
     @Inject lateinit var uiMessageResolver: UIMessageResolver
 
     private var progressDialog: CustomProgressDialog? = null
@@ -196,8 +196,8 @@ class EditShippingLabelAddressFragment
                         )
                     } else {
                         hideProgressDialog()
+                    }
                 }
-            }
             new.isLoadingProgressDialogVisible?.takeIfNotEqualTo(old?.isLoadingProgressDialogVisible) { isVisible ->
                 if (isVisible) {
                     showProgressDialog(
@@ -322,9 +322,7 @@ class EditShippingLabelAddressFragment
             viewModel.onUseAddressAsIsButtonClicked()
         }
         binding.countrySpinner.onClick {
-            if (FeatureFlag.SHIPPING_LABELS_M4.isEnabled()) {
-                viewModel.onCountrySpinnerTapped()
-            }
+            viewModel.onCountrySpinnerTapped()
         }
         binding.stateSpinner.onClick {
             viewModel.onStateSpinnerTapped()
