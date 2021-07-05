@@ -18,11 +18,12 @@ import com.woocommerce.android.model.WooPlugin
 import com.woocommerce.android.model.toAppModel
 import com.woocommerce.android.model.toOrderStatus
 import com.woocommerce.android.tools.SelectedSite
+import com.woocommerce.android.ui.orders.shippinglabels.creation.ShippingLabelCreationFeatures
+import com.woocommerce.android.util.ContinuationWrapper
+import com.woocommerce.android.util.ContinuationWrapper.ContinuationResult.Cancellation
+import com.woocommerce.android.util.ContinuationWrapper.ContinuationResult.Success
 import com.woocommerce.android.util.WooLog
 import com.woocommerce.android.util.WooLog.T.ORDERS
-import com.woocommerce.android.util.suspendCancellableCoroutineWithTimeout
-import kotlinx.coroutines.CancellableContinuation
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.greenrobot.eventbus.EventBus
@@ -36,6 +37,7 @@ import org.wordpress.android.fluxc.model.WCOrderShipmentTrackingModel
 import org.wordpress.android.fluxc.model.WCOrderStatusModel
 import org.wordpress.android.fluxc.model.order.OrderIdentifier
 import org.wordpress.android.fluxc.model.order.toIdSet
+import org.wordpress.android.fluxc.network.rest.wpcom.wc.shippinglabels.LabelItem
 import org.wordpress.android.fluxc.store.WCOrderStore
 import org.wordpress.android.fluxc.store.WCOrderStore.AddOrderShipmentTrackingPayload
 import org.wordpress.android.fluxc.store.WCOrderStore.DeleteOrderShipmentTrackingPayload
@@ -51,7 +53,6 @@ import org.wordpress.android.fluxc.store.WCRefundStore
 import org.wordpress.android.fluxc.store.WCShippingLabelStore
 import org.wordpress.android.fluxc.store.WooCommerceStore
 import javax.inject.Inject
-import kotlin.coroutines.resume
 
 @OpenClassOnDebug
 class OrderDetailRepository @Inject constructor(
@@ -63,13 +64,13 @@ class OrderDetailRepository @Inject constructor(
     private val selectedSite: SelectedSite,
     private val wooCommerceStore: WooCommerceStore
 ) {
-    private var continuationFetchOrder: CancellableContinuation<Boolean>? = null
-    private var continuationFetchOrderNotes: CancellableContinuation<Boolean>? = null
-    private var continuationFetchOrderShipmentTrackingList: CancellableContinuation<RequestResult>? = null
-    private var continuationUpdateOrderStatus: CancellableContinuation<Boolean>? = null
-    private var continuationAddOrderNote: CancellableContinuation<Boolean>? = null
-    private var continuationAddShipmentTracking: CancellableContinuation<Boolean>? = null
-    private var continuationDeleteShipmentTracking: CancellableContinuation<Boolean>? = null
+    private var continuationFetchOrder = ContinuationWrapper<Boolean>(ORDERS)
+    private var continuationFetchOrderNotes = ContinuationWrapper<Boolean>(ORDERS)
+    private var continuationFetchOrderShipmentTrackingList = ContinuationWrapper<RequestResult>(ORDERS)
+    private var continuationUpdateOrderStatus = ContinuationWrapper<Boolean>(ORDERS)
+    private var continuationAddOrderNote = ContinuationWrapper<Boolean>(ORDERS)
+    private var continuationAddShipmentTracking = ContinuationWrapper<Boolean>(ORDERS)
+    private var continuationDeleteShipmentTracking = ContinuationWrapper<Boolean>(ORDERS)
 
     init {
         dispatcher.register(this)
@@ -79,39 +80,31 @@ class OrderDetailRepository @Inject constructor(
         dispatcher.unregister(this)
     }
 
-    suspend fun fetchOrder(orderIdentifier: OrderIdentifier): Order? {
+    suspend fun fetchOrder(orderIdentifier: OrderIdentifier, useCachedOnFailure: Boolean = true): Order? {
         val remoteOrderId = orderIdentifier.toIdSet().remoteOrderId
-        try {
-            continuationFetchOrder?.cancel()
-            suspendCancellableCoroutineWithTimeout<Boolean>(AppConstants.REQUEST_TIMEOUT) {
-                continuationFetchOrder = it
-
-                val payload = WCOrderStore.FetchSingleOrderPayload(selectedSite.get(), remoteOrderId)
-                dispatcher.dispatch(WCOrderActionBuilder.newFetchSingleOrderAction(payload))
-            }
-        } catch (e: CancellationException) {
-            WooLog.e(ORDERS, "CancellationException while fetching single order $remoteOrderId")
+        val requestResult = continuationFetchOrder.callAndWaitUntilTimeout(AppConstants.REQUEST_TIMEOUT) {
+            val payload = WCOrderStore.FetchSingleOrderPayload(selectedSite.get(), remoteOrderId)
+            dispatcher.dispatch(WCOrderActionBuilder.newFetchSingleOrderAction(payload))
         }
-
-        continuationFetchOrder = null
-        return getOrder(orderIdentifier)
+        val requestSuccessful = requestResult is Success && requestResult.value
+        return if (requestSuccessful || useCachedOnFailure) {
+            getOrder(orderIdentifier)
+        } else {
+            null
+        }
     }
 
     suspend fun fetchOrderNotes(
         localOrderId: Int,
         remoteOrderId: Long
     ): Boolean {
-        return try {
-            continuationFetchOrderNotes?.cancel()
-            suspendCancellableCoroutineWithTimeout<Boolean>(AppConstants.REQUEST_TIMEOUT) {
-                continuationFetchOrderNotes = it
-
-                val payload = FetchOrderNotesPayload(localOrderId, remoteOrderId, selectedSite.get())
-                dispatcher.dispatch(WCOrderActionBuilder.newFetchOrderNotesAction(payload))
-            } ?: false
-        } catch (e: CancellationException) {
-            WooLog.e(ORDERS, "CancellationException while fetching order notes $remoteOrderId")
-            false
+        val result = continuationFetchOrderNotes.callAndWaitUntilTimeout(AppConstants.REQUEST_TIMEOUT) {
+            val payload = FetchOrderNotesPayload(localOrderId, remoteOrderId, selectedSite.get())
+            dispatcher.dispatch(WCOrderActionBuilder.newFetchOrderNotesAction(payload))
+        }
+        return when (result) {
+            is Cancellation -> false
+            is Success -> result.value
         }
     }
 
@@ -119,17 +112,13 @@ class OrderDetailRepository @Inject constructor(
         localOrderId: Int,
         remoteOrderId: Long
     ): RequestResult {
-        return try {
-            continuationFetchOrderShipmentTrackingList?.cancel()
-            suspendCancellableCoroutineWithTimeout<RequestResult>(AppConstants.REQUEST_TIMEOUT) {
-                continuationFetchOrderShipmentTrackingList = it
-
-                val payload = FetchOrderShipmentTrackingsPayload(localOrderId, remoteOrderId, selectedSite.get())
-                dispatcher.dispatch(WCOrderActionBuilder.newFetchOrderShipmentTrackingsAction(payload))
-            } ?: RequestResult.ERROR
-        } catch (e: CancellationException) {
-            WooLog.e(ORDERS, "CancellationException while fetching shipment trackings $remoteOrderId")
-            RequestResult.ERROR
+        val result = continuationFetchOrderShipmentTrackingList.callAndWaitUntilTimeout(AppConstants.REQUEST_TIMEOUT) {
+            val payload = FetchOrderShipmentTrackingsPayload(localOrderId, remoteOrderId, selectedSite.get())
+            dispatcher.dispatch(WCOrderActionBuilder.newFetchOrderShipmentTrackingsAction(payload))
+        }
+        return when (result) {
+            is Cancellation -> RequestResult.ERROR
+            is Success -> result.value
         }
     }
 
@@ -149,7 +138,7 @@ class OrderDetailRepository @Inject constructor(
         } else VALUE_API_SUCCESS
         AnalyticsTracker.track(Stat.SHIPPING_LABEL_API_REQUEST, mapOf(KEY_FEEDBACK_ACTION to action))
 
-        return result.model?.map { it.toAppModel() } ?: emptyList()
+        return result.model?.filter { it.status == LabelItem.STATUS_PURCHASED }?.map { it.toAppModel() } ?: emptyList()
     }
 
     suspend fun updateOrderStatus(
@@ -157,19 +146,15 @@ class OrderDetailRepository @Inject constructor(
         remoteOrderId: Long,
         newStatus: String
     ): Boolean {
-        return try {
-            continuationUpdateOrderStatus?.cancel()
-            suspendCancellableCoroutineWithTimeout<Boolean>(AppConstants.REQUEST_TIMEOUT) {
-                continuationUpdateOrderStatus = it
-
-                val payload = UpdateOrderStatusPayload(
-                    localOrderId, remoteOrderId, selectedSite.get(), newStatus
-                )
-                dispatcher.dispatch(WCOrderActionBuilder.newUpdateOrderStatusAction(payload))
-            } ?: false
-        } catch (e: CancellationException) {
-            WooLog.e(ORDERS, "CancellationException while updating order status $remoteOrderId")
-            false
+        val result = continuationUpdateOrderStatus.callAndWaitUntilTimeout(AppConstants.REQUEST_TIMEOUT) {
+            val payload = UpdateOrderStatusPayload(
+                localOrderId, remoteOrderId, selectedSite.get(), newStatus
+            )
+            dispatcher.dispatch(WCOrderActionBuilder.newUpdateOrderStatusAction(payload))
+        }
+        return when (result) {
+            is Cancellation -> false
+            is Success -> result.value
         }
     }
 
@@ -178,23 +163,19 @@ class OrderDetailRepository @Inject constructor(
         remoteOrderId: Long,
         noteModel: OrderNote
     ): Boolean {
-        return try {
-            continuationAddOrderNote?.cancel()
-            val order = orderStore.getOrderByIdentifier(orderIdentifier)
-            if (order == null) {
-                WooLog.e(ORDERS, "Can't find order with identifier $orderIdentifier")
-                return false
-            }
-            suspendCancellableCoroutineWithTimeout<Boolean>(AppConstants.REQUEST_TIMEOUT) {
-                continuationAddOrderNote = it
-
-                val dataModel = noteModel.toDataModel()
-                val payload = PostOrderNotePayload(order.id, remoteOrderId, selectedSite.get(), dataModel)
-                dispatcher.dispatch(WCOrderActionBuilder.newPostOrderNoteAction(payload))
-            } ?: false
-        } catch (e: CancellationException) {
-            WooLog.e(ORDERS, "CancellationException while adding order note $remoteOrderId")
-            false
+        val order = orderStore.getOrderByIdentifier(orderIdentifier)
+        if (order == null) {
+            WooLog.e(ORDERS, "Can't find order with identifier $orderIdentifier")
+            return false
+        }
+        val result = continuationAddOrderNote.callAndWaitUntilTimeout(AppConstants.REQUEST_TIMEOUT) {
+            val dataModel = noteModel.toDataModel()
+            val payload = PostOrderNotePayload(order.id, remoteOrderId, selectedSite.get(), dataModel)
+            dispatcher.dispatch(WCOrderActionBuilder.newPostOrderNoteAction(payload))
+        }
+        return when (result) {
+            is Cancellation -> false
+            is Success -> result.value
         }
     }
 
@@ -203,23 +184,19 @@ class OrderDetailRepository @Inject constructor(
         shipmentTrackingModel: OrderShipmentTracking
     ): Boolean {
         val orderIdSet = orderIdentifier.toIdSet()
-        return try {
-            continuationAddShipmentTracking?.cancel()
-            suspendCancellableCoroutineWithTimeout<Boolean>(AppConstants.REQUEST_TIMEOUT) {
-                continuationAddShipmentTracking = it
-
-                val payload = AddOrderShipmentTrackingPayload(
-                    selectedSite.get(),
-                    orderIdSet.id,
-                    orderIdSet.remoteOrderId,
-                    shipmentTrackingModel.toDataModel(),
-                    shipmentTrackingModel.isCustomProvider
-                )
-                dispatcher.dispatch(WCOrderActionBuilder.newAddOrderShipmentTrackingAction(payload))
-            } ?: false
-        } catch (e: CancellationException) {
-            WooLog.e(ORDERS, "CancellationException while adding shipment tracking ${orderIdSet.remoteOrderId}")
-            false
+        val result = continuationAddShipmentTracking.callAndWaitUntilTimeout(AppConstants.REQUEST_TIMEOUT) {
+            val payload = AddOrderShipmentTrackingPayload(
+                selectedSite.get(),
+                orderIdSet.id,
+                orderIdSet.remoteOrderId,
+                shipmentTrackingModel.toDataModel(),
+                shipmentTrackingModel.isCustomProvider
+            )
+            dispatcher.dispatch(WCOrderActionBuilder.newAddOrderShipmentTrackingAction(payload))
+        }
+        return when (result) {
+            is Cancellation -> false
+            is Success -> result.value
         }
     }
 
@@ -228,19 +205,15 @@ class OrderDetailRepository @Inject constructor(
         remoteOrderId: Long,
         shipmentTrackingModel: WCOrderShipmentTrackingModel
     ): Boolean {
-        return try {
-            continuationDeleteShipmentTracking?.cancel()
-            suspendCancellableCoroutineWithTimeout<Boolean>(AppConstants.REQUEST_TIMEOUT) {
-                continuationDeleteShipmentTracking = it
-
-                val payload = DeleteOrderShipmentTrackingPayload(
-                    selectedSite.get(), localOrderId, remoteOrderId, shipmentTrackingModel
-                )
-                dispatcher.dispatch(WCOrderActionBuilder.newDeleteOrderShipmentTrackingAction(payload))
-            } ?: false
-        } catch (e: CancellationException) {
-            WooLog.e(ORDERS, "CancellationException while deleting shipment tracking $remoteOrderId")
-            false
+        val result = continuationDeleteShipmentTracking.callAndWaitUntilTimeout(AppConstants.REQUEST_TIMEOUT) {
+            val payload = DeleteOrderShipmentTrackingPayload(
+                selectedSite.get(), localOrderId, remoteOrderId, shipmentTrackingModel
+            )
+            dispatcher.dispatch(WCOrderActionBuilder.newDeleteOrderShipmentTrackingAction(payload))
+        }
+        return when (result) {
+            is Cancellation -> false
+            is Success -> result.value
         }
     }
 
@@ -275,6 +248,13 @@ class OrderDetailRepository @Inject constructor(
         } else 0
     }
 
+    fun hasSubscriptionProducts(remoteProductIds: List<Long>): Boolean {
+        return if (remoteProductIds.isNotEmpty()) {
+            productStore.getProductsByRemoteIds(selectedSite.get(), remoteProductIds)
+                .any { it.type == PRODUCT_SUBSCRIPTION_TYPE }
+        } else false
+    }
+
     fun getOrderRefunds(remoteOrderId: Long) = refundStore
         .getAllRefunds(selectedSite.get(), remoteOrderId)
         .map { it.toAppModel() }
@@ -292,15 +272,48 @@ class OrderDetailRepository @Inject constructor(
         orderStore.getShipmentTrackingsForOrder(selectedSite.get(), localOrderId).map { it.toAppModel() }
 
     fun getOrderShippingLabels(remoteOrderId: Long) = shippingLabelStore
-        .getShippingLabelsForOrder(selectedSite.get(), remoteOrderId).map { it.toAppModel() }
+        .getShippingLabelsForOrder(selectedSite.get(), remoteOrderId)
+        .filter { it.status == LabelItem.STATUS_PURCHASED }
+        .map { it.toAppModel() }
 
     fun getWooServicesPluginInfo(): WooPlugin {
         val info = wooCommerceStore.getWooCommerceServicesPluginInfo(selectedSite.get())
-        return WooPlugin(info != null, info?.active ?: false)
+        return WooPlugin(info != null, info?.active ?: false, info?.version)
     }
 
     fun getStoreCountryCode(): String? {
         return wooCommerceStore.getStoreCountryCode(selectedSite.get())
+    }
+
+    suspend fun fetchSLCreationEligibility(orderId: Long) {
+        val result = shippingLabelStore.fetchShippingLabelCreationEligibility(
+            site = selectedSite.get(),
+            orderId = orderId,
+            canCreatePackage = ShippingLabelCreationFeatures.CAN_CREATE_PACKAGE,
+            canCreatePaymentMethod = ShippingLabelCreationFeatures.CAN_CREATE_PAYMENT_METHOD,
+            canCreateCustomsForm = ShippingLabelCreationFeatures.CAN_CREATE_CUSTOMS_FORM
+        )
+        if (result.isError) {
+            WooLog.e(
+                tag = ORDERS,
+                message = "Fetching shipping labels creation eligibility failed for $orderId, " +
+                    "error: ${result.error.type} ${result.error.message}")
+        } else if (!result.model!!.isEligible) {
+            WooLog.d(
+                tag = ORDERS,
+                message = "Order $orderId is not eligible for shipping labels creation, " +
+                    "reason: ${result.model!!.reason}")
+        }
+    }
+
+    fun isOrderEligibleForSLCreation(orderId: Long): Boolean {
+        return shippingLabelStore.isOrderEligibleForShippingLabelCreation(
+            site = selectedSite.get(),
+            orderId = orderId,
+            canCreatePackage = ShippingLabelCreationFeatures.CAN_CREATE_PACKAGE,
+            canCreatePaymentMethod = ShippingLabelCreationFeatures.CAN_CREATE_PAYMENT_METHOD,
+            canCreateCustomsForm = ShippingLabelCreationFeatures.CAN_CREATE_CUSTOMS_FORM
+        )?.isEligible ?: false
     }
 
     @Suppress("unused")
@@ -308,32 +321,28 @@ class OrderDetailRepository @Inject constructor(
     fun onOrderChanged(event: OnOrderChanged) {
         when (event.causeOfChange) {
             WCOrderAction.FETCH_SINGLE_ORDER -> {
-                if (continuationFetchOrder?.isActive == true) {
-                    if (event.isError) {
-                        continuationFetchOrder?.resume(false)
-                    } else {
-                        continuationFetchOrder?.resume(true)
-                    }
+                if (event.isError) {
+                    continuationFetchOrder.continueWith(false)
+                } else {
+                    continuationFetchOrder.continueWith(true)
                 }
             }
             WCOrderAction.FETCH_ORDER_NOTES -> {
                 if (event.isError) {
-                    continuationFetchOrderNotes?.resume(false)
+                    continuationFetchOrderNotes.continueWith(false)
                 } else {
-                    continuationFetchOrderNotes?.resume(true)
+                    continuationFetchOrderNotes.continueWith(true)
                 }
-                continuationFetchOrderNotes = null
             }
             WCOrderAction.FETCH_ORDER_SHIPMENT_TRACKINGS -> {
                 if (event.isError) {
                     val error = if (event.error.type == OrderErrorType.PLUGIN_NOT_ACTIVE) {
                         RequestResult.API_ERROR
                     } else RequestResult.ERROR
-                    continuationFetchOrderShipmentTrackingList?.resume(error)
+                    continuationFetchOrderShipmentTrackingList.continueWith(error)
                 } else {
-                    continuationFetchOrderShipmentTrackingList?.resume(RequestResult.SUCCESS)
+                    continuationFetchOrderShipmentTrackingList.continueWith(RequestResult.SUCCESS)
                 }
-                continuationFetchOrderShipmentTrackingList = null
             }
             WCOrderAction.UPDATE_ORDER_STATUS -> {
                 if (event.isError) {
@@ -343,12 +352,11 @@ class OrderDetailRepository @Inject constructor(
                         AnalyticsTracker.KEY_ERROR_TYPE to event.error.type.toString(),
                         AnalyticsTracker.KEY_ERROR_DESC to event.error.message)
                     )
-                    continuationUpdateOrderStatus?.resume(false)
+                    continuationUpdateOrderStatus.continueWith(false)
                 } else {
                     AnalyticsTracker.track(Stat.ORDER_STATUS_CHANGE_SUCCESS)
-                    continuationUpdateOrderStatus?.resume(true)
+                    continuationUpdateOrderStatus.continueWith(true)
                 }
-                continuationUpdateOrderStatus = null
             }
             WCOrderAction.POST_ORDER_NOTE -> {
                 if (event.isError) {
@@ -358,12 +366,11 @@ class OrderDetailRepository @Inject constructor(
                         AnalyticsTracker.KEY_ERROR_TYPE to event.error.type.toString(),
                         AnalyticsTracker.KEY_ERROR_DESC to event.error.message)
                     )
-                    continuationAddOrderNote?.resume(false)
+                    continuationAddOrderNote.continueWith(false)
                 } else {
                     AnalyticsTracker.track(Stat.ORDER_NOTE_ADD_SUCCESS)
-                    continuationAddOrderNote?.resume(true)
+                    continuationAddOrderNote.continueWith(true)
                 }
-                continuationAddOrderNote = null
             }
             WCOrderAction.ADD_ORDER_SHIPMENT_TRACKING -> {
                 if (event.isError) {
@@ -373,12 +380,11 @@ class OrderDetailRepository @Inject constructor(
                         AnalyticsTracker.KEY_ERROR_TYPE to event.error.type.toString(),
                         AnalyticsTracker.KEY_ERROR_DESC to event.error.message)
                     )
-                    continuationAddShipmentTracking?.resume(false)
+                    continuationAddShipmentTracking.continueWith(false)
                 } else {
                     AnalyticsTracker.track(Stat.ORDER_TRACKING_ADD_SUCCESS)
-                    continuationAddShipmentTracking?.resume(true)
+                    continuationAddShipmentTracking.continueWith(true)
                 }
-                continuationAddShipmentTracking = null
             }
             WCOrderAction.DELETE_ORDER_SHIPMENT_TRACKING -> {
                 if (event.isError) {
@@ -388,14 +394,14 @@ class OrderDetailRepository @Inject constructor(
                         AnalyticsTracker.KEY_ERROR_TYPE to event.error.type.toString(),
                         AnalyticsTracker.KEY_ERROR_DESC to event.error.message
                     ))
-                    continuationDeleteShipmentTracking?.resume(false)
+                    continuationDeleteShipmentTracking.continueWith(false)
                 } else {
                     AnalyticsTracker.track(Stat.ORDER_TRACKING_DELETE_SUCCESS)
-                    continuationDeleteShipmentTracking?.resume(true)
+                    continuationDeleteShipmentTracking.continueWith(true)
                 }
-                continuationDeleteShipmentTracking = null
             }
-            else -> { }
+            else -> {
+            }
         }
     }
 
@@ -411,5 +417,9 @@ class OrderDetailRepository @Inject constructor(
         if (event.causeOfChange == FETCH_SINGLE_PRODUCT && !event.isError) {
             EventBus.getDefault().post(OnProductImageChanged(event.remoteProductId))
         }
+    }
+
+    companion object {
+        const val PRODUCT_SUBSCRIPTION_TYPE = "subscription"
     }
 }

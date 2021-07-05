@@ -21,24 +21,27 @@ import com.woocommerce.android.extensions.takeIfNotEqualTo
 import com.woocommerce.android.ui.base.BaseFragment
 import com.woocommerce.android.ui.base.UIMessageResolver
 import com.woocommerce.android.ui.main.MainActivity.Companion.BackPressListener
+import com.woocommerce.android.util.DateUtils
 import com.woocommerce.android.viewmodel.MultiLiveEvent.Event.Exit
 import com.woocommerce.android.viewmodel.MultiLiveEvent.Event.ExitWithResult
 import com.woocommerce.android.viewmodel.MultiLiveEvent.Event.ShowSnackbar
 import com.woocommerce.android.viewmodel.ResourceProvider
-import com.woocommerce.android.viewmodel.ViewModelFactory
 import com.woocommerce.android.widgets.SkeletonView
 import com.woocommerce.android.widgets.WCEmptyView.EmptyViewType.SHIPPING_LABEL_CARRIER_RATES
+import dagger.hilt.android.AndroidEntryPoint
 import org.wordpress.android.util.ActivityUtils
 import javax.inject.Inject
 
+@AndroidEntryPoint
 class ShippingCarrierRatesFragment : BaseFragment(R.layout.fragment_shipping_carrier_rates), BackPressListener {
     companion object {
         const val SHIPPING_CARRIERS_CLOSED = "shipping_carriers_closed"
         const val SHIPPING_CARRIERS_RESULT = "shipping_carriers_result"
     }
+
     @Inject lateinit var uiMessageResolver: UIMessageResolver
-    @Inject lateinit var viewModelFactory: ViewModelFactory
     @Inject lateinit var resourceProvider: ResourceProvider
+    @Inject lateinit var dateUtils: DateUtils
 
     private var doneMenuItem: MenuItem? = null
 
@@ -47,7 +50,7 @@ class ShippingCarrierRatesFragment : BaseFragment(R.layout.fragment_shipping_car
 
     private val skeletonView: SkeletonView = SkeletonView()
 
-    val viewModel: ShippingCarrierRatesViewModel by viewModels { viewModelFactory }
+    val viewModel: ShippingCarrierRatesViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -87,7 +90,10 @@ class ShippingCarrierRatesFragment : BaseFragment(R.layout.fragment_shipping_car
 
     private fun initializeViews() {
         binding.carrierRates.apply {
-            adapter = binding.carrierRates.adapter ?: ShippingCarrierRatesAdapter(viewModel::onShippingRateSelected)
+            adapter = binding.carrierRates.adapter ?: ShippingCarrierRatesAdapter(
+                onRateSelected = viewModel::onShippingRateSelected,
+                dateUtils = dateUtils
+            )
             layoutManager = LinearLayoutManager(context)
             itemAnimator = DefaultItemAnimator().apply {
                 supportsChangeAnimations = false

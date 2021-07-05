@@ -1,20 +1,18 @@
 package com.woocommerce.android.ui.products.downloads
 
 import android.net.Uri
-import com.squareup.inject.assisted.Assisted
-import com.squareup.inject.assisted.AssistedInject
-import com.woocommerce.android.di.ViewModelAssistedFactory
+import androidx.lifecycle.SavedStateHandle
 import com.woocommerce.android.model.ProductFile
 import com.woocommerce.android.ui.products.ProductNavigationTarget.ViewProductDownloadDetails
-import com.woocommerce.android.util.CoroutineDispatchers
 import com.woocommerce.android.viewmodel.MultiLiveEvent.Event
-import com.woocommerce.android.viewmodel.SavedStateWithArgs
 import com.woocommerce.android.viewmodel.ScopedViewModel
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 
-class AddProductDownloadViewModel @AssistedInject constructor(
-    @Assisted savedState: SavedStateWithArgs,
-    dispatchers: CoroutineDispatchers
-) : ScopedViewModel(savedState, dispatchers) {
+@HiltViewModel
+class AddProductDownloadViewModel @Inject constructor(
+    savedState: SavedStateHandle
+) : ScopedViewModel(savedState) {
     fun onMediaGalleryClicked() {
         triggerEvent(PickFileFromMedialLibrary)
     }
@@ -39,7 +37,4 @@ class AddProductDownloadViewModel @AssistedInject constructor(
     object PickFileFromMedialLibrary : Event()
     object PickFileFromDevice : Event()
     data class UploadFile(val uri: Uri) : Event()
-
-    @AssistedInject.Factory
-    interface Factory : ViewModelAssistedFactory<AddProductDownloadViewModel>
 }

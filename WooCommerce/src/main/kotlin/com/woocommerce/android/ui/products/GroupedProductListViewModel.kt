@@ -3,35 +3,32 @@ package com.woocommerce.android.ui.products
 import android.os.Parcelable
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
-import com.squareup.inject.assisted.Assisted
-import com.squareup.inject.assisted.AssistedInject
+import androidx.lifecycle.SavedStateHandle
 import com.woocommerce.android.R.string
 import com.woocommerce.android.analytics.AnalyticsTracker
 import com.woocommerce.android.analytics.AnalyticsTracker.Companion.ConnectedProductsListAction
 import com.woocommerce.android.analytics.AnalyticsTracker.Companion.KEY_CONNECTED_PRODUCTS_LIST_ACTION
 import com.woocommerce.android.analytics.AnalyticsTracker.Companion.KEY_CONNECTED_PRODUCTS_LIST_CONTEXT
 import com.woocommerce.android.analytics.AnalyticsTracker.Stat
-import com.woocommerce.android.annotations.OpenClassOnDebug
-import com.woocommerce.android.di.ViewModelAssistedFactory
 import com.woocommerce.android.model.Product
 import com.woocommerce.android.tools.NetworkStatus
 import com.woocommerce.android.ui.products.ProductNavigationTarget.ViewProductSelectionList
-import com.woocommerce.android.util.CoroutineDispatchers
 import com.woocommerce.android.viewmodel.LiveDataDelegate
 import com.woocommerce.android.viewmodel.MultiLiveEvent.Event.ExitWithResult
 import com.woocommerce.android.viewmodel.MultiLiveEvent.Event.ShowSnackbar
-import com.woocommerce.android.viewmodel.SavedStateWithArgs
 import com.woocommerce.android.viewmodel.ScopedViewModel
-import kotlinx.android.parcel.Parcelize
+import com.woocommerce.android.viewmodel.navArgs
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
+import kotlinx.parcelize.Parcelize
+import javax.inject.Inject
 
-@OpenClassOnDebug
-class GroupedProductListViewModel @AssistedInject constructor(
-    @Assisted savedState: SavedStateWithArgs,
-    dispatchers: CoroutineDispatchers,
+@HiltViewModel
+class GroupedProductListViewModel @Inject constructor(
+    savedState: SavedStateHandle,
     private val networkStatus: NetworkStatus,
     private val groupedProductListRepository: GroupedProductListRepository
-) : ScopedViewModel(savedState, dispatchers) {
+) : ScopedViewModel(savedState) {
     private val navArgs: GroupedProductListFragmentArgs by savedState.navArgs()
 
     private val originalProductIds = navArgs.productIds.toList()
@@ -39,8 +36,7 @@ class GroupedProductListViewModel @AssistedInject constructor(
     private val _productList = MutableLiveData<List<Product>>()
     val productList: LiveData<List<Product>> = _productList
 
-    final val productListViewStateData =
-        LiveDataDelegate(savedState, GroupedProductListViewState(originalProductIds))
+    val productListViewStateData = LiveDataDelegate(savedState, GroupedProductListViewState(originalProductIds))
     private var productListViewState by productListViewStateData
 
     private val selectedProductIds
@@ -166,6 +162,4 @@ class GroupedProductListViewModel @AssistedInject constructor(
         val isAddProductButtonVisible: Boolean
             get() = isSkeletonShown == false
     }
-    @AssistedInject.Factory
-    interface Factory : ViewModelAssistedFactory<GroupedProductListViewModel>
 }

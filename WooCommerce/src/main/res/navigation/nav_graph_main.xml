@@ -108,7 +108,6 @@
             app:argType="com.woocommerce.android.ui.feedback.SurveyType" />
     </fragment>
 
-    <!-- TODO ? -->
     <action
         android:id="@+id/action_global_productDetailFragment"
         app:destination="@id/nav_graph_products"
@@ -181,6 +180,31 @@
             app:argType="com.woocommerce.android.ui.common.InfoScreenFragment$InfoScreenLinkAction"
             app:nullable="true" />
     </fragment>
+    <fragment
+        android:id="@+id/userEligibilityErrorFragment"
+        android:name="com.woocommerce.android.ui.common.UserEligibilityErrorFragment"
+        android:label="fragment_user_eligibility_error"
+        tools:layout="@layout/fragment_user_eligibility_error" />
+    <fragment
+        android:id="@+id/WPComWebViewFragment"
+        android:name="com.woocommerce.android.ui.common.wpcomwebview.WPComWebViewFragment"
+        android:label="WPComWebViewFragment"
+        tools:layout="@layout/fragment_wpcom_webview">
+        <argument
+            android:name="urlToLoad"
+            app:argType="string" />
+        <argument
+            android:name="urlToTriggerExit"
+            app:argType="string"
+            app:nullable="true"
+            android:defaultValue="@null"/>
+    </fragment>
+    <action android:id="@+id/action_global_WPComWebViewFragment" app:destination="@id/WPComWebViewFragment"/>
+    <action
+        android:id="@+id/action_global_userEligibilityErrorFragment"
+        app:destination="@id/userEligibilityErrorFragment"
+        app:enterAnim="@anim/activity_slide_in_from_right"
+        app:popExitAnim="@anim/activity_slide_out_to_right" />
 
     <action
         android:id="@+id/action_global_infoScreenFragment"

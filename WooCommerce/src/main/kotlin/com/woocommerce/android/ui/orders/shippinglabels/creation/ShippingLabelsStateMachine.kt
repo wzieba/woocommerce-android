@@ -3,8 +3,10 @@ package com.woocommerce.android.ui.orders.shippinglabels.creation
 import android.os.Parcelable
 import com.tinder.StateMachine
 import com.woocommerce.android.model.Address
+import com.woocommerce.android.model.CustomsPackage
 import com.woocommerce.android.model.Order
 import com.woocommerce.android.model.PaymentMethod
+import com.woocommerce.android.model.ShippingLabel
 import com.woocommerce.android.model.ShippingLabelPackage
 import com.woocommerce.android.model.ShippingRate
 import com.woocommerce.android.ui.orders.shippinglabels.creation.ShippingLabelAddressValidator.AddressType
@@ -14,6 +16,8 @@ import com.woocommerce.android.ui.orders.shippinglabels.creation.ShippingLabelAd
 import com.woocommerce.android.ui.orders.shippinglabels.creation.ShippingLabelsStateMachine.Error.AddressValidationError
 import com.woocommerce.android.ui.orders.shippinglabels.creation.ShippingLabelsStateMachine.Error.DataLoadingError
 import com.woocommerce.android.ui.orders.shippinglabels.creation.ShippingLabelsStateMachine.Event.UserInput
+import com.woocommerce.android.ui.orders.shippinglabels.creation.ShippingLabelsStateMachine.SideEffect.TrackCompletedStep
+import com.woocommerce.android.ui.orders.shippinglabels.creation.ShippingLabelsStateMachine.SideEffect.TrackFlowStart
 import com.woocommerce.android.ui.orders.shippinglabels.creation.ShippingLabelsStateMachine.Step.CarrierStep
 import com.woocommerce.android.ui.orders.shippinglabels.creation.ShippingLabelsStateMachine.Step.CustomsStep
 import com.woocommerce.android.ui.orders.shippinglabels.creation.ShippingLabelsStateMachine.Step.OriginAddressStep
@@ -25,10 +29,11 @@ import com.woocommerce.android.ui.orders.shippinglabels.creation.ShippingLabelsS
 import com.woocommerce.android.ui.orders.shippinglabels.creation.ShippingLabelsStateMachine.StepStatus.READY
 import com.woocommerce.android.util.WooLog
 import com.woocommerce.android.util.WooLog.T
-import kotlinx.android.parcel.Parcelize
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.parcelize.IgnoredOnParcel
+import kotlinx.parcelize.Parcelize
 import javax.inject.Inject
 
 /*
@@ -121,17 +126,18 @@ class ShippingLabelsStateMachine @Inject constructor() {
 
         state<State.Idle> {
             on<Event.FlowStarted> { event ->
-                transitionTo(State.DataLoading(event.orderId))
+                transitionTo(State.DataLoading(event.orderId), TrackFlowStart)
             }
         }
 
         state<State.DataLoading> {
             on<Event.DataLoaded> { event ->
+                val isInternational = event.shippingAddress.country != event.originAddress.country
                 val steps = StepsState(
                     originAddressStep = OriginAddressStep(READY, event.originAddress),
                     shippingAddressStep = ShippingAddressStep(NOT_READY, event.shippingAddress),
                     packagingStep = PackagingStep(NOT_READY, emptyList()),
-                    customsStep = CustomsStep(NOT_READY),
+                    customsStep = CustomsStep(NOT_READY, isVisible = isInternational, data = null),
                     carrierStep = CarrierStep(NOT_READY, emptyList()),
                     paymentsStep = PaymentsStep(NOT_READY, event.currentPaymentMethod)
                 )
@@ -166,7 +172,15 @@ class ShippingLabelsStateMachine @Inject constructor() {
                 )
             }
             on<Event.CustomsDeclarationStarted> {
-                transitionTo(State.CustomsDeclaration(data), SideEffect.ShowCustomsForm)
+                transitionTo(
+                    State.CustomsDeclaration(data),
+                    SideEffect.ShowCustomsForm(
+                        originCountryCode = data.stepsState.originAddressStep.data.country,
+                        destinationCountryCode = data.stepsState.shippingAddressStep.data.country,
+                        shippingPackages = data.stepsState.packagingStep.data,
+                        customsPackages = data.stepsState.customsStep.data ?: emptyList()
+                    )
+                )
             }
             on<Event.ShippingCarrierSelectionStarted> {
                 transitionTo(State.ShippingCarrierSelection(data), SideEffect.ShowCarrierOptions(data))
@@ -177,13 +191,22 @@ class ShippingLabelsStateMachine @Inject constructor() {
             on<Event.EditOriginAddressRequested> {
                 transitionTo(
                     State.OriginAddressEditing(data),
-                    SideEffect.OpenAddressEditor(data.stepsState.originAddressStep.data, ORIGIN)
+                    SideEffect.OpenAddressEditor(
+                        address = data.stepsState.originAddressStep.data,
+                        type = ORIGIN,
+                        requiresPhoneNumber = data.isInternationalShipment
+                    )
                 )
             }
             on<Event.EditShippingAddressRequested> {
                 transitionTo(
                     State.ShippingAddressEditing(data),
-                    SideEffect.OpenAddressEditor(data.stepsState.shippingAddressStep.data, DESTINATION)
+                    SideEffect.OpenAddressEditor(
+                        address = data.stepsState.shippingAddressStep.data,
+                        type = DESTINATION,
+                        requiresPhoneNumber = data.isInternationalShipment &&
+                            data.stepsState.carrierStep.requiresDestinationPhoneNumber
+                    )
                 )
             }
             on<Event.EditPackagingRequested> {
@@ -193,13 +216,24 @@ class ShippingLabelsStateMachine @Inject constructor() {
                 )
             }
             on<Event.EditCustomsRequested> {
-                transitionTo(State.CustomsDeclaration(data), SideEffect.ShowCustomsForm)
+                transitionTo(
+                    State.CustomsDeclaration(data),
+                    SideEffect.ShowCustomsForm(
+                        originCountryCode = data.stepsState.originAddressStep.data.country,
+                        destinationCountryCode = data.stepsState.shippingAddressStep.data.country,
+                        shippingPackages = data.stepsState.packagingStep.data,
+                        customsPackages = data.stepsState.customsStep.data ?: emptyList()
+                    )
+                )
             }
             on<Event.EditShippingCarrierRequested> {
                 transitionTo(State.ShippingCarrierSelection(data), SideEffect.ShowCarrierOptions(data))
             }
             on<Event.EditPaymentRequested> {
                 transitionTo(State.PaymentSelection(data), SideEffect.ShowPaymentOptions)
+            }
+            on<Event.PurchaseStarted> {
+                transitionTo(State.PurchaseLabels(data, it.fulfillOrder))
             }
         }
 
@@ -208,7 +242,7 @@ class ShippingLabelsStateMachine @Inject constructor() {
                 val newData = data.copy(
                     stepsState = data.stepsState.updateStep(data.stepsState.originAddressStep, event.address)
                 )
-                transitionTo(State.WaitingForInput(newData))
+                transitionTo(State.WaitingForInput(newData), getTracksSideEffect(data.stepsState.originAddressStep))
             }
             on<Event.AddressChangeSuggested> { event ->
                 transitionTo(
@@ -224,14 +258,15 @@ class ShippingLabelsStateMachine @Inject constructor() {
                 transitionTo(
                     State.OriginAddressEditing(data),
                     SideEffect.OpenAddressEditor(
-                        data.stepsState.originAddressStep.data,
-                        ORIGIN,
-                        event.validationResult
+                        address = data.stepsState.originAddressStep.data,
+                        type = ORIGIN,
+                        validationResult = event.validationResult,
+                        requiresPhoneNumber = data.isInternationalShipment
                     )
                 )
             }
             on<Event.AddressValidationFailed> {
-                transitionTo(State.OriginAddressValidationFailure, SideEffect.ShowError(AddressValidationError))
+                transitionTo(State.WaitingForInput(data), SideEffect.ShowError(AddressValidationError))
             }
         }
 
@@ -240,10 +275,17 @@ class ShippingLabelsStateMachine @Inject constructor() {
                 val newData = data.copy(
                     stepsState = data.stepsState.updateStep(data.stepsState.originAddressStep, event.address)
                 )
-                transitionTo(State.WaitingForInput(newData))
+                transitionTo(State.WaitingForInput(newData), getTracksSideEffect(data.stepsState.originAddressStep))
             }
             on<Event.EditAddressRequested> { event ->
-                transitionTo(State.OriginAddressEditing(data), SideEffect.OpenAddressEditor(event.address, ORIGIN))
+                transitionTo(
+                    State.OriginAddressEditing(data),
+                    SideEffect.OpenAddressEditor(
+                        address = event.address,
+                        type = ORIGIN,
+                        requiresPhoneNumber = data.isInternationalShipment
+                    )
+                )
             }
             on<Event.SuggestedAddressDiscarded> {
                 transitionTo(State.WaitingForInput(data))
@@ -255,7 +297,7 @@ class ShippingLabelsStateMachine @Inject constructor() {
                 val newData = data.copy(
                     stepsState = data.stepsState.updateStep(data.stepsState.originAddressStep, event.address)
                 )
-                transitionTo(State.WaitingForInput(newData))
+                transitionTo(State.WaitingForInput(newData), getTracksSideEffect(data.stepsState.originAddressStep))
             }
             on<Event.AddressEditCanceled> {
                 transitionTo(State.WaitingForInput(data))
@@ -267,7 +309,7 @@ class ShippingLabelsStateMachine @Inject constructor() {
                 val newData = data.copy(
                     stepsState = data.stepsState.updateStep(data.stepsState.shippingAddressStep, event.address)
                 )
-                transitionTo(State.WaitingForInput(newData))
+                transitionTo(State.WaitingForInput(newData), getTracksSideEffect(data.stepsState.shippingAddressStep))
             }
             on<Event.AddressChangeSuggested> { event ->
                 transitionTo(
@@ -283,14 +325,16 @@ class ShippingLabelsStateMachine @Inject constructor() {
                 transitionTo(
                     State.ShippingAddressEditing(data),
                     SideEffect.OpenAddressEditor(
-                        data.stepsState.shippingAddressStep.data,
-                        DESTINATION,
-                        event.validationResult
+                        address = data.stepsState.shippingAddressStep.data,
+                        type = DESTINATION,
+                        validationResult = event.validationResult,
+                        requiresPhoneNumber = data.isInternationalShipment &&
+                            data.stepsState.carrierStep.requiresDestinationPhoneNumber
                     )
                 )
             }
             on<Event.AddressValidationFailed> {
-                transitionTo(State.ShippingAddressValidationFailure, SideEffect.ShowError(AddressValidationError))
+                transitionTo(State.WaitingForInput(data), SideEffect.ShowError(AddressValidationError))
             }
         }
 
@@ -299,12 +343,17 @@ class ShippingLabelsStateMachine @Inject constructor() {
                 val newData = data.copy(
                     stepsState = data.stepsState.updateStep(data.stepsState.shippingAddressStep, event.address)
                 )
-                transitionTo(State.WaitingForInput(newData))
+                transitionTo(State.WaitingForInput(newData), getTracksSideEffect(data.stepsState.shippingAddressStep))
             }
             on<Event.EditAddressRequested> { event ->
                 transitionTo(
                     State.ShippingAddressEditing(data),
-                    SideEffect.OpenAddressEditor(event.address, DESTINATION)
+                    SideEffect.OpenAddressEditor(
+                        address = event.address,
+                        type = DESTINATION,
+                        requiresPhoneNumber = data.isInternationalShipment &&
+                            data.stepsState.carrierStep.requiresDestinationPhoneNumber
+                    )
                 )
             }
             on<Event.SuggestedAddressDiscarded> {
@@ -317,7 +366,7 @@ class ShippingLabelsStateMachine @Inject constructor() {
                 val newData = data.copy(
                     stepsState = data.stepsState.updateStep(data.stepsState.shippingAddressStep, event.address)
                 )
-                transitionTo(State.WaitingForInput(newData))
+                transitionTo(State.WaitingForInput(newData), getTracksSideEffect(data.stepsState.shippingAddressStep))
             }
             on<Event.AddressEditCanceled> {
                 transitionTo(State.WaitingForInput(data))
@@ -329,7 +378,7 @@ class ShippingLabelsStateMachine @Inject constructor() {
                 val newData = data.copy(
                     stepsState = data.stepsState.updateStep(data.stepsState.packagingStep, event.shippingPackages)
                 )
-                transitionTo(State.WaitingForInput(newData))
+                transitionTo(State.WaitingForInput(newData), getTracksSideEffect(data.stepsState.packagingStep))
             }
 
             on<Event.EditPackagingCanceled> {
@@ -338,11 +387,14 @@ class ShippingLabelsStateMachine @Inject constructor() {
         }
 
         state<State.CustomsDeclaration> {
-            on<Event.CustomsFormFilledOut> {
+            on<Event.CustomsFormFilledOut> { event ->
                 val newData = data.copy(
-                    stepsState = data.stepsState.updateStep(data.stepsState.customsStep, Unit)
+                    stepsState = data.stepsState.updateStep(data.stepsState.customsStep, event.customsPackages)
                 )
-                transitionTo(State.WaitingForInput(newData))
+                transitionTo(State.WaitingForInput(newData), getTracksSideEffect(data.stepsState.customsStep))
+            }
+            on<Event.EditCustomsCanceled> {
+                transitionTo((State.WaitingForInput(data)))
             }
         }
 
@@ -354,7 +406,7 @@ class ShippingLabelsStateMachine @Inject constructor() {
                         it.rates
                     )
                 )
-                transitionTo(State.WaitingForInput(newData))
+                transitionTo(State.WaitingForInput(newData), getTracksSideEffect(data.stepsState.carrierStep))
             }
             on<Event.ShippingCarrierSelectionCanceled> {
                 transitionTo(State.WaitingForInput(data))
@@ -366,11 +418,21 @@ class ShippingLabelsStateMachine @Inject constructor() {
                 val newData = data.copy(
                     stepsState = data.stepsState.updateStep(data.stepsState.paymentsStep, it.paymentMethod)
                 )
-                transitionTo(State.WaitingForInput(newData))
+                transitionTo(State.WaitingForInput(newData), getTracksSideEffect(data.stepsState.paymentsStep))
             }
 
             on<Event.EditPaymentCanceled> {
                 transitionTo(State.WaitingForInput(data))
+            }
+        }
+
+        state<State.PurchaseLabels> {
+            on<Event.PurchaseFailed> {
+                transitionTo(State.WaitingForInput(data), SideEffect.ShowError(Error.PurchaseError))
+            }
+
+            on<Event.PurchaseSuccess> {
+                transitionTo(State.Idle, SideEffect.ShowLabelsPrint(data.order.remoteId, it.labels))
             }
         }
 
@@ -409,6 +471,14 @@ class ShippingLabelsStateMachine @Inject constructor() {
         }
     }
 
+    private fun getTracksSideEffect(step: Step<*>): SideEffect? {
+        return if (step.status == DONE) {
+            null
+        } else {
+            TrackCompletedStep(step)
+        }
+    }
+
     /**
      * Data passed around between states
      */
@@ -416,7 +486,11 @@ class ShippingLabelsStateMachine @Inject constructor() {
     data class StateMachineData(
         val order: Order,
         val stepsState: StepsState
-    ) : Parcelable
+    ) : Parcelable {
+        @IgnoredOnParcel
+        val isInternationalShipment
+            get() = stepsState.isInternational
+    }
 
     /**
      * The main shipping label creation steps
@@ -444,15 +518,22 @@ class ShippingLabelsStateMachine @Inject constructor() {
         @Parcelize
         data class CustomsStep(
             override val status: StepStatus,
-            override val isVisible: Boolean = false,
-            override val data: Unit = Unit
-        ) : Step<Unit>()
+            override val isVisible: Boolean,
+            override val data: List<CustomsPackage>?
+        ) : Step<List<CustomsPackage>?>()
 
         @Parcelize
         data class CarrierStep(
             override val status: StepStatus,
             override val data: List<ShippingRate>
-        ) : Step<List<ShippingRate>>()
+        ) : Step<List<ShippingRate>>() {
+            /**
+             * Checks if one of the selected carriers requires a destination phone number
+             * if the shipment is international
+             */
+            val requiresDestinationPhoneNumber
+                get() = data.any { it.carrierId.contains("dhl", ignoreCase = true) }
+        }
 
         @Parcelize
         data class PaymentsStep(
@@ -469,50 +550,49 @@ class ShippingLabelsStateMachine @Inject constructor() {
         val customsStep: CustomsStep,
         val carrierStep: CarrierStep,
         val paymentsStep: PaymentsStep
-    ) : Parcelable {
+    ) : Parcelable, Iterable<Step<out Any?>> {
+        @IgnoredOnParcel
+        val isInternational
+            get() = originAddressStep.data.country != shippingAddressStep.data.country
+
+        @IgnoredOnParcel
+        private val backingList = listOf(
+            originAddressStep,
+            shippingAddressStep,
+            packagingStep,
+            customsStep,
+            carrierStep,
+            paymentsStep
+        ).filter { it.isVisible }
+
         @Suppress("UNCHECKED_CAST")
         fun <T> updateStep(currentStep: Step<T>, newData: T): StepsState {
-            return if (currentStep.status == DONE) {
-                editStep(currentStep, newData)
-            } else {
-                completeStep(currentStep, newData)
-            }
-        }
-
-        private fun <T> completeStep(currentStep: Step<T>, newData: T): StepsState {
             return when (currentStep) {
-                is OriginAddressStep -> copy(
-                    originAddressStep = originAddressStep.copy(status = DONE, data = newData as Address),
-                    shippingAddressStep = shippingAddressStep.copy(status = READY)
-                )
-                is ShippingAddressStep -> copy(
-                    shippingAddressStep = shippingAddressStep.copy(
-                        status = DONE,
-                        data = newData as Address
-                    ),
-                    packagingStep = packagingStep.copy(status = READY)
-                )
-                is PackagingStep -> {
-                    val newPackagingStep = packagingStep.copy(
-                        status = DONE,
-                        data = newData as List<ShippingLabelPackage>
+                is OriginAddressStep -> {
+                    val newAddress = newData as Address
+                    val isSamePhysicalAddress = newAddress.isSamePhysicalAddress(originAddressStep.data)
+                    val newState = copy(
+                        originAddressStep = originAddressStep.copy(status = DONE, data = newData as Address)
                     )
-                    if (customsStep.isVisible) {
-                        copy(
-                            packagingStep = newPackagingStep,
-                            customsStep = customsStep.copy(status = READY)
-                        )
-                    } else {
-                        copy(
-                            packagingStep = newPackagingStep,
-                            carrierStep = carrierStep.copy(status = READY)
-                        )
-                    }
+                    if (isSamePhysicalAddress) newState else newState.invalidateCarrierStep()
                 }
-                is CustomsStep -> copy(
-                    customsStep = customsStep.copy(status = DONE),
-                    carrierStep = carrierStep.copy(status = READY)
+                is ShippingAddressStep -> {
+                    val newAddress = newData as Address
+                    val isSamePhysicalAddress = newAddress.isSamePhysicalAddress(shippingAddressStep.data)
+                    val newState = copy(
+                        shippingAddressStep = shippingAddressStep.copy(status = DONE, data = newData as Address)
+                    )
+                    if (isSamePhysicalAddress) newState else newState.invalidateCarrierStep()
+                }
+                is PackagingStep -> copy(
+                    packagingStep = packagingStep.copy(status = DONE, data = newData as List<ShippingLabelPackage>)
                 )
+                    .invalidateCustomsStep()
+                    .invalidateCarrierStep()
+                is CustomsStep -> copy(
+                    customsStep = customsStep.copy(status = DONE, data = newData as List<CustomsPackage>)
+                )
+                    .invalidateCarrierStep()
                 is CarrierStep -> {
                     val paymentStatus = if (paymentsStep.data == null) READY else DONE
                     copy(
@@ -524,32 +604,79 @@ class ShippingLabelsStateMachine @Inject constructor() {
                     paymentsStep = paymentsStep.copy(status = DONE, data = newData as PaymentMethod)
                 )
             }
+                .updateForInternationalRequirements()
+                .calculateNextStep()
+                .fixStates()
         }
 
-        private fun <T> editStep(currentStep: Step<T>, newData: T): StepsState {
-            if (currentStep.data == newData) return this
-            return when (currentStep) {
-                is OriginAddressStep -> copy(
-                    originAddressStep = originAddressStep.copy(data = newData as Address),
-                    carrierStep = invalidateCarrierStepIfNeeded()
-                )
-                is ShippingAddressStep -> copy(
-                    shippingAddressStep = shippingAddressStep.copy(data = newData as Address),
-                    carrierStep = invalidateCarrierStepIfNeeded()
-                )
-                is PackagingStep -> copy(
-                    packagingStep = packagingStep.copy(data = newData as List<ShippingLabelPackage>),
-                    carrierStep = invalidateCarrierStepIfNeeded()
-                )
-                is CustomsStep -> copy(customsStep = customsStep.copy(data = newData as Unit))
-                is CarrierStep -> copy(carrierStep = carrierStep.copy(data = newData as List<ShippingRate>))
-                is PaymentsStep -> copy(paymentsStep = paymentsStep.copy(data = newData as PaymentMethod))
+        private fun updateForInternationalRequirements(): StepsState {
+            val originAddressStep = if (isInternational && !originAddressStep.data.hasValidPhoneNumber(ORIGIN)) {
+                originAddressStep.copy(status = READY)
+            } else originAddressStep
+
+            val shippingAddressStep = if (isInternational &&
+                carrierStep.requiresDestinationPhoneNumber &&
+                !shippingAddressStep.data.hasValidPhoneNumber(DESTINATION)) {
+                shippingAddressStep.copy(status = READY)
+            } else shippingAddressStep
+
+            val customsStep = customsStep.copy(
+                isVisible = isInternational,
+                data = if (isInternational) customsStep.data else null
+            )
+
+            return copy(
+                originAddressStep = originAddressStep,
+                shippingAddressStep = shippingAddressStep,
+                customsStep = customsStep
+            )
+        }
+
+        private fun invalidateCarrierStep(): StepsState {
+            val carrierStep = carrierStep.copy(data = emptyList(), status = NOT_READY)
+            return copy(carrierStep = carrierStep)
+        }
+
+        private fun invalidateCustomsStep(): StepsState {
+            val customsStep = customsStep.copy(data = null, status = NOT_READY)
+            return copy(customsStep = customsStep)
+        }
+
+        private fun calculateNextStep(): StepsState {
+            val nextStep = indexOfFirst { it.status != DONE }
+            return if (nextStep != -1) updateStepStatus(get(nextStep), READY) else this
+        }
+
+        /**
+         * Updates the steps so that only one step is READY at each time
+         */
+        private fun fixStates(): StepsState {
+            val indexOfReadyState = indexOfFirst { it.status == READY }
+            var updatedStates = this
+            for (i in indexOfReadyState + 1 until backingList.size) {
+                val step = get(i)
+                if (step.status == DONE) continue
+                updatedStates = updatedStates.updateStepStatus(step, NOT_READY)
+            }
+            return updatedStates
+        }
+
+        private fun <T> updateStepStatus(step: Step<T>, newStatus: StepStatus): StepsState {
+            return when (step) {
+                is OriginAddressStep -> copy(originAddressStep = originAddressStep.copy(status = newStatus))
+                is ShippingAddressStep -> copy(shippingAddressStep = shippingAddressStep.copy(status = newStatus))
+                is PackagingStep -> copy(packagingStep = packagingStep.copy(status = newStatus))
+                is CustomsStep -> copy(customsStep = customsStep.copy(status = newStatus))
+                is CarrierStep -> copy(carrierStep = carrierStep.copy(status = newStatus))
+                is PaymentsStep -> copy(paymentsStep = paymentsStep.copy(status = newStatus))
             }
         }
 
-        private fun invalidateCarrierStepIfNeeded(): CarrierStep {
-            return if (carrierStep.status == DONE) carrierStep.copy(status = READY) else carrierStep
+        override fun iterator(): Iterator<Step<out Any?>> {
+            return backingList.iterator()
         }
+
+        operator fun get(index: Int): Step<out Any?> = backingList[index]
     }
 
     enum class StepStatus {
@@ -560,6 +687,7 @@ class ShippingLabelsStateMachine @Inject constructor() {
         object DataLoadingError : Error()
         object AddressValidationError : Error()
         object PackagesLoadingError : Error()
+        object PurchaseError : Error()
     }
 
     sealed class State : Parcelable {
@@ -585,9 +713,6 @@ class ShippingLabelsStateMachine @Inject constructor() {
         data class OriginAddressEditing(val data: StateMachineData) : State()
 
         @Parcelize
-        object OriginAddressValidationFailure : State()
-
-        @Parcelize
         data class ShippingAddressValidation(val data: StateMachineData) : State()
 
         @Parcelize
@@ -595,9 +720,6 @@ class ShippingLabelsStateMachine @Inject constructor() {
 
         @Parcelize
         data class ShippingAddressEditing(val data: StateMachineData) : State()
-
-        @Parcelize
-        object ShippingAddressValidationFailure : State()
 
         @Parcelize
         data class PackageSelection(val data: StateMachineData) : State()
@@ -610,6 +732,9 @@ class ShippingLabelsStateMachine @Inject constructor() {
 
         @Parcelize
         data class PaymentSelection(val data: StateMachineData) : State()
+
+        @Parcelize
+        data class PurchaseLabels(val data: StateMachineData, val fulfillOrder: Boolean) : State()
     }
 
     sealed class Event {
@@ -647,7 +772,8 @@ class ShippingLabelsStateMachine @Inject constructor() {
 
         object CustomsDeclarationStarted : UserInput()
         object EditCustomsRequested : UserInput()
-        object CustomsFormFilledOut : Event()
+        object EditCustomsCanceled : Event()
+        data class CustomsFormFilledOut(val customsPackages: List<CustomsPackage>) : Event()
 
         object ShippingCarrierSelectionStarted : UserInput()
         object EditShippingCarrierRequested : UserInput()
@@ -658,6 +784,10 @@ class ShippingLabelsStateMachine @Inject constructor() {
         object EditPaymentRequested : UserInput()
         object EditPaymentCanceled : Event()
         data class PaymentSelected(val paymentMethod: PaymentMethod) : Event()
+
+        data class PurchaseStarted(val fulfillOrder: Boolean) : UserInput()
+        data class PurchaseSuccess(val labels: List<ShippingLabel>) : Event()
+        object PurchaseFailed : Event()
     }
 
     sealed class SideEffect {
@@ -673,16 +803,32 @@ class ShippingLabelsStateMachine @Inject constructor() {
         data class OpenAddressEditor(
             val address: Address,
             val type: AddressType,
-            val validationResult: ValidationResult? = null
+            val validationResult: ValidationResult? = null,
+            val requiresPhoneNumber: Boolean
         ) : SideEffect()
 
         data class ShowPackageOptions(
             val shippingPackages: List<ShippingLabelPackage>
         ) : SideEffect()
 
-        object ShowCustomsForm : SideEffect()
+        data class ShowCustomsForm(
+            val originCountryCode: String,
+            val destinationCountryCode: String,
+            val shippingPackages: List<ShippingLabelPackage>,
+            val customsPackages: List<CustomsPackage>
+        ) : SideEffect()
+
         data class ShowCarrierOptions(val data: StateMachineData) : SideEffect()
+
         object ShowPaymentOptions : SideEffect()
+
+        data class ShowLabelsPrint(
+            val orderId: Long,
+            val labels: List<ShippingLabel>
+        ) : SideEffect()
+
+        object TrackFlowStart : SideEffect()
+        data class TrackCompletedStep(val step: Step<*>) : SideEffect()
     }
 
     class InvalidStateException(message: String) : Exception(message)

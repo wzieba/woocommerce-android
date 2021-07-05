@@ -3,7 +3,6 @@ package com.woocommerce.android.ui.mystore
 import com.woocommerce.android.AppPrefs
 import com.woocommerce.android.analytics.AnalyticsTracker
 import com.woocommerce.android.analytics.AnalyticsTracker.Stat
-import com.woocommerce.android.di.ActivityScope
 import com.woocommerce.android.network.ConnectionChangeReceiver
 import com.woocommerce.android.network.ConnectionChangeReceiver.ConnectionChangeEvent
 import com.woocommerce.android.tools.NetworkStatus
@@ -38,7 +37,6 @@ import org.wordpress.android.fluxc.store.WCStatsStore.StatsGranularity
 import org.wordpress.android.fluxc.store.WooCommerceStore
 import javax.inject.Inject
 
-@ActivityScope
 class MyStorePresenter @Inject constructor(
     private val dispatcher: Dispatcher,
     private val wooCommerceStore: WooCommerceStore, // Required to ensure the WooCommerceStore is initialized!
@@ -143,6 +141,15 @@ class MyStorePresenter @Inject constructor(
                 .also { handleTopPerformersResult(it, granularity) }
         }
     }
+
+    override fun getSelectedSiteName(): String? =
+        selectedSite.getIfExists()?.let { site ->
+            if (!site.displayName.isNullOrBlank()) {
+                site.displayName
+            } else {
+                site.name
+            }
+        }
 
     private suspend fun handleTopPerformersResult(
         result: WooResult<List<WCTopPerformerProductModel>>,

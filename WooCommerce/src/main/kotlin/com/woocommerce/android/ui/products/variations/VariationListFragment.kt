@@ -2,10 +2,10 @@ package com.woocommerce.android.ui.products.variations
 
 import android.os.Bundle
 import android.os.Parcelable
-import android.view.Menu
-import android.view.MenuInflater
-import android.view.MenuItem
 import android.view.View
+import android.view.View.INVISIBLE
+import android.view.View.VISIBLE
+import androidx.annotation.StringRes
 import androidx.core.view.isVisible
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Observer
@@ -19,39 +19,46 @@ import com.woocommerce.android.R
 import com.woocommerce.android.analytics.AnalyticsTracker
 import com.woocommerce.android.analytics.AnalyticsTracker.Stat
 import com.woocommerce.android.databinding.FragmentVariationListBinding
-import com.woocommerce.android.databinding.ProductPropertyWarningLayoutBinding
 import com.woocommerce.android.di.GlideApp
+import com.woocommerce.android.extensions.handleResult
+import com.woocommerce.android.extensions.navigateBackWithResult
 import com.woocommerce.android.extensions.navigateSafely
 import com.woocommerce.android.extensions.takeIfNotEqualTo
 import com.woocommerce.android.model.Product
 import com.woocommerce.android.model.ProductVariation
 import com.woocommerce.android.ui.base.BaseFragment
 import com.woocommerce.android.ui.base.UIMessageResolver
+import com.woocommerce.android.ui.main.MainActivity.Companion.BackPressListener
 import com.woocommerce.android.ui.products.OnLoadMoreListener
-import com.woocommerce.android.ui.products.variations.VariationListViewModel.ShowAttributeList
+import com.woocommerce.android.ui.products.variations.VariationDetailFragment.Companion.KEY_VARIATION_DETAILS_RESULT
+import com.woocommerce.android.ui.products.variations.VariationDetailViewModel.DeletedVariationData
+import com.woocommerce.android.ui.products.variations.VariationListViewModel.ShowAddAttributeView
 import com.woocommerce.android.ui.products.variations.VariationListViewModel.ShowVariationDetail
-import com.woocommerce.android.util.FeatureFlag
 import com.woocommerce.android.viewmodel.MultiLiveEvent.Event.Exit
+import com.woocommerce.android.viewmodel.MultiLiveEvent.Event.ExitWithResult
 import com.woocommerce.android.viewmodel.MultiLiveEvent.Event.ShowSnackbar
-import com.woocommerce.android.viewmodel.ViewModelFactory
 import com.woocommerce.android.widgets.AlignedDividerDecoration
+import com.woocommerce.android.widgets.CustomProgressDialog
 import com.woocommerce.android.widgets.SkeletonView
+import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
+@AndroidEntryPoint
 class VariationListFragment : BaseFragment(R.layout.fragment_variation_list),
+    BackPressListener,
     OnLoadMoreListener {
     companion object {
         const val TAG: String = "VariationListFragment"
+        const val KEY_VARIATION_LIST_RESULT = "key_variation_list_result"
         private const val LIST_STATE_KEY = "list_state"
-        private const val ID_EDIT_ATTRIBUTES = 1
     }
 
-    @Inject lateinit var viewModelFactory: ViewModelFactory
     @Inject lateinit var uiMessageResolver: UIMessageResolver
 
-    private val viewModel: VariationListViewModel by viewModels { viewModelFactory }
+    private val viewModel: VariationListViewModel by viewModels()
 
     private val skeletonView = SkeletonView()
+    private var progressDialog: CustomProgressDialog? = null
     private var layoutManager: LayoutManager? = null
 
     private val navArgs: VariationListFragmentArgs by navArgs()
@@ -59,15 +66,10 @@ class VariationListFragment : BaseFragment(R.layout.fragment_variation_list),
     private var _binding: FragmentVariationListBinding? = null
     private val binding get() = _binding!!
 
-    // this is an included layout
-    private var _warningBinding: ProductPropertyWarningLayoutBinding? = null
-    private val warningBinding get() = _warningBinding!!
-
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
         _binding = FragmentVariationListBinding.bind(view)
-        _warningBinding = binding.variationVisibilityWarning
 
         setHasOptionsMenu(true)
         initializeViews(savedInstanceState)
@@ -78,7 +80,6 @@ class VariationListFragment : BaseFragment(R.layout.fragment_variation_list),
         skeletonView.hide()
         super.onDestroyView()
         _binding = null
-        _warningBinding = null
     }
 
     override fun onResume() {
@@ -86,37 +87,14 @@ class VariationListFragment : BaseFragment(R.layout.fragment_variation_list),
         AnalyticsTracker.trackViewShown(this)
     }
 
+    override fun onPause() {
+        super.onPause()
+        progressDialog?.dismiss()
+    }
+
     override fun onSaveInstanceState(outState: Bundle) {
         layoutManager?.let {
             outState.putParcelable(LIST_STATE_KEY, it.onSaveInstanceState())
-        }
-    }
-
-    override fun onCreateOptionsMenu(menu: Menu, inflater: MenuInflater) {
-        super.onCreateOptionsMenu(menu, inflater)
-
-        if (FeatureFlag.ADD_EDIT_VARIATIONS.isEnabled()) {
-            val mnuEditAttr = menu.add(Menu.NONE, ID_EDIT_ATTRIBUTES, Menu.NONE, R.string.product_variations_edit_attr)
-            mnuEditAttr.setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
-            mnuEditAttr.isVisible = false
-        }
-    }
-
-    override fun onPrepareOptionsMenu(menu: Menu) {
-        super.onPrepareOptionsMenu(menu)
-
-        if (FeatureFlag.ADD_EDIT_VARIATIONS.isEnabled()) {
-            menu.findItem(ID_EDIT_ATTRIBUTES)?.isVisible = !viewModel.isEmpty()
-        }
-    }
-
-    override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        return when (item.itemId) {
-            ID_EDIT_ATTRIBUTES -> {
-                viewModel.onAddEditAttributesClick()
-                true
-            }
-            else -> super.onOptionsItemSelected(item)
         }
     }
 
@@ -141,14 +119,20 @@ class VariationListFragment : BaseFragment(R.layout.fragment_variation_list),
                 viewModel.refreshVariations(navArgs.remoteProductId)
             }
         }
+
+        binding.firstVariationView.setOnClickListener {
+            viewModel.onCreateFirstVariationRequested()
+        }
+
+        binding.addVariationButton.setOnClickListener {
+            viewModel.onCreateEmptyVariationClick()
+        }
     }
 
     private fun initializeViewModel() {
         setupObservers(viewModel)
+        setupResultHandlers(viewModel)
         viewModel.start(navArgs.remoteProductId)
-        binding.firstVariationView.setOnClickListener {
-            // TODO call variation creation view sequence
-        }
     }
 
     private fun setupObservers(viewModel: VariationListViewModel) {
@@ -161,19 +145,9 @@ class VariationListFragment : BaseFragment(R.layout.fragment_variation_list),
                 binding.loadMoreProgress.isVisible = it
             }
             new.isWarningVisible?.takeIfNotEqualTo(old?.isWarningVisible) { showWarning(it) }
-            new.isEmptyViewVisible?.takeIfNotEqualTo(old?.isEmptyViewVisible) { isEmptyViewVisible ->
-                if (FeatureFlag.ADD_EDIT_VARIATIONS.isEnabled()) {
-                    binding.firstVariationView.updateVisibility(
-                        shouldBeVisible = isEmptyViewVisible,
-                        showButton = true
-                    )
-                } else {
-                    binding.emptyView.updateVisibility(
-                        shouldBeVisible = isEmptyViewVisible,
-                        showButton = false
-                    )
-                }
-                requireActivity().invalidateOptionsMenu()
+            new.isEmptyViewVisible?.takeIfNotEqualTo(old?.isEmptyViewVisible, ::handleEmptyViewChanges)
+            new.isProgressDialogShown?.takeIfNotEqualTo(old?.isProgressDialogShown) {
+                showProgressDialog(it, R.string.variation_create_dialog_title)
             }
         }
 
@@ -185,28 +159,36 @@ class VariationListFragment : BaseFragment(R.layout.fragment_variation_list),
         viewModel.event.observe(viewLifecycleOwner, Observer { event ->
             when (event) {
                 is ShowVariationDetail -> openVariationDetail(event.variation)
-                is ShowAttributeList -> openAttributeList()
+                is ShowAddAttributeView -> openAddAttributeView()
                 is ShowSnackbar -> uiMessageResolver.showSnack(event.message)
+                is ExitWithResult<*> -> navigateBackWithResult(KEY_VARIATION_LIST_RESULT, event.data)
                 is Exit -> activity?.onBackPressed()
             }
         })
     }
 
+    private fun setupResultHandlers(viewModel: VariationListViewModel) {
+        handleResult<DeletedVariationData>(KEY_VARIATION_DETAILS_RESULT) {
+            viewModel.onVariationDeleted(it.productID, it.variationID)
+        }
+    }
+
     private fun showWarning(isVisible: Boolean) {
-        warningBinding.root.isVisible = isVisible
+        binding.variationVisibilityWarning.isVisible = isVisible
     }
 
     private fun openVariationDetail(variation: ProductVariation) {
         val action = VariationListFragmentDirections.actionVariationListFragmentToVariationDetailFragment(
-            variation
+            variation.remoteProductId,
+            variation.remoteVariationId
         )
         findNavController().navigateSafely(action)
     }
 
-    private fun openAttributeList() {
-        val action = VariationListFragmentDirections.actionVariationListFragmentToAttributeListFragment()
-        findNavController().navigateSafely(action)
-    }
+    private fun openAddAttributeView() =
+        VariationListFragmentDirections
+            .actionVariationListFragmentToAddAttributeFragment(true)
+            .run { findNavController().navigateSafely(this) }
 
     override fun getFragmentTitle() = getString(R.string.product_variations)
 
@@ -238,5 +220,37 @@ class VariationListFragment : BaseFragment(R.layout.fragment_variation_list),
         }
 
         adapter.setVariationList(variations)
+    }
+
+    private fun handleEmptyViewChanges(isEmptyViewVisible: Boolean) {
+        binding.variationInfoContainer.visibility = if (isEmptyViewVisible) INVISIBLE else VISIBLE
+        binding.firstVariationView.updateVisibility(
+            shouldBeVisible = isEmptyViewVisible,
+            showButton = true
+        )
+        requireActivity().invalidateOptionsMenu()
+    }
+
+    private fun showProgressDialog(show: Boolean, @StringRes title: Int) {
+        if (show) {
+            hideProgressDialog()
+            progressDialog = CustomProgressDialog.show(
+                getString(title),
+                getString(R.string.product_update_dialog_message)
+            ).also { it.show(parentFragmentManager, CustomProgressDialog.TAG) }
+            progressDialog?.isCancelable = false
+        } else {
+            hideProgressDialog()
+        }
+    }
+
+    private fun hideProgressDialog() {
+        progressDialog?.dismiss()
+        progressDialog = null
+    }
+
+    override fun onRequestAllowBackPress(): Boolean {
+        viewModel.onExit()
+        return false
     }
 }

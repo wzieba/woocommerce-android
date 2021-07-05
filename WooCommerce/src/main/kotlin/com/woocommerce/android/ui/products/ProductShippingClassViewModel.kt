@@ -1,30 +1,28 @@
 package com.woocommerce.android.ui.products
 
 import android.os.Parcelable
-import com.squareup.inject.assisted.Assisted
-import com.squareup.inject.assisted.AssistedInject
+import androidx.lifecycle.SavedStateHandle
 import com.woocommerce.android.R
-import com.woocommerce.android.di.ViewModelAssistedFactory
 import com.woocommerce.android.model.ShippingClass
-import com.woocommerce.android.util.CoroutineDispatchers
 import com.woocommerce.android.util.WooLog
 import com.woocommerce.android.util.WooLog.T
 import com.woocommerce.android.viewmodel.LiveDataDelegate
 import com.woocommerce.android.viewmodel.MultiLiveEvent.Event.ExitWithResult
 import com.woocommerce.android.viewmodel.ResourceProvider
-import com.woocommerce.android.viewmodel.SavedStateWithArgs
 import com.woocommerce.android.viewmodel.ScopedViewModel
-import kotlinx.android.parcel.Parcelize
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import kotlinx.parcelize.Parcelize
+import javax.inject.Inject
 
-class ProductShippingClassViewModel @AssistedInject constructor(
-    @Assisted savedState: SavedStateWithArgs,
-    dispatchers: CoroutineDispatchers,
+@HiltViewModel
+class ProductShippingClassViewModel @Inject constructor(
+    savedState: SavedStateHandle,
     private val productRepository: ProductShippingClassRepository,
-    private val resourceProvider: ResourceProvider
-) : ScopedViewModel(savedState, dispatchers) {
+    resourceProvider: ResourceProvider
+) : ScopedViewModel(savedState) {
     private val noShippingClass = ShippingClass(
         name = resourceProvider.getString(R.string.product_no_shipping_class),
         slug = "",
@@ -107,7 +105,4 @@ class ProductShippingClassViewModel @AssistedInject constructor(
         val isLoadingMoreProgressShown: Boolean = false,
         val shippingClassList: List<ShippingClass>? = null
     ) : Parcelable
-
-    @AssistedInject.Factory
-    interface Factory : ViewModelAssistedFactory<ProductShippingClassViewModel>
 }

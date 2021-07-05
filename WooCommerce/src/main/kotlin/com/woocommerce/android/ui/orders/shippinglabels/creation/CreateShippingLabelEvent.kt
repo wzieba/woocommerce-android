@@ -1,7 +1,9 @@
 package com.woocommerce.android.ui.orders.shippinglabels.creation
 
 import com.woocommerce.android.model.Address
+import com.woocommerce.android.model.CustomsPackage
 import com.woocommerce.android.model.Order
+import com.woocommerce.android.model.ShippingLabel
 import com.woocommerce.android.model.ShippingLabelPackage
 import com.woocommerce.android.model.ShippingRate
 import com.woocommerce.android.ui.orders.shippinglabels.creation.ShippingLabelAddressValidator.AddressType
@@ -14,7 +16,8 @@ sealed class CreateShippingLabelEvent : MultiLiveEvent.Event() {
     data class ShowAddressEditor(
         val address: Address,
         val type: AddressType,
-        val validationResult: ValidationResult?
+        val validationResult: ValidationResult?,
+        val requiresPhoneNumber: Boolean
     ) : CreateShippingLabelEvent()
 
     data class ShowSuggestedAddress(
@@ -50,15 +53,25 @@ sealed class CreateShippingLabelEvent : MultiLiveEvent.Event() {
         val shippingLabelPackages: List<ShippingLabelPackage>
     ) : CreateShippingLabelEvent()
 
+    data class ShowCustomsForm(
+        val originCountryCode: String,
+        val destinationCountryCode: String,
+        val shippingPackages: List<ShippingLabelPackage>,
+        val customsPackages: List<CustomsPackage>
+    ) : CreateShippingLabelEvent()
+
     data class ShowShippingRates(
         val order: Order,
         val originAddress: Address,
         val destinationAddress: Address,
         val shippingLabelPackages: List<ShippingLabelPackage>,
+        val customsPackages: List<CustomsPackage>?,
         val selectedRates: List<ShippingRate>
     ) : CreateShippingLabelEvent()
 
     object ShowPaymentDetails : CreateShippingLabelEvent()
+
+    data class ShowPrintShippingLabels(val orderId: Long, val labels: List<ShippingLabel>) : CreateShippingLabelEvent()
 
     object ShowWooDiscountBottomSheet : CreateShippingLabelEvent()
 }

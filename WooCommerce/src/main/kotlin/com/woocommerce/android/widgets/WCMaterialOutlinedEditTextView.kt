@@ -14,6 +14,7 @@ import androidx.core.widget.doAfterTextChanged
 import com.google.android.material.textfield.TextInputLayout
 import com.woocommerce.android.R
 import com.woocommerce.android.databinding.ViewMaterialOutlinedEdittextBinding
+import org.wordpress.android.util.ActivityUtils
 
 /**
  * Custom View that encapsulates a [TextInputLayout] and [TextInputEditText], and as such has the following
@@ -78,6 +79,18 @@ class WCMaterialOutlinedEditTextView @JvmOverloads constructor(
 
     fun getText() = binding.editText.text.toString()
 
+    /**
+     * Updates the text only if the current content is different from the supplied one.
+     * Helpful when this view is inside a RecyclerView to avoid resetting the cursor position and recursive listener
+     * events.
+     */
+    fun setTextIfDifferent(newText: String) {
+        if (getText() != newText) {
+            setText(newText)
+            binding.editText.setSelection(newText.length)
+        }
+    }
+
     fun setSelection(start: Int, stop: Int) {
         binding.editText.setSelection(start, stop)
     }
@@ -93,7 +106,6 @@ class WCMaterialOutlinedEditTextView @JvmOverloads constructor(
             if (action == EditorInfo.IME_ACTION_DONE) {
                 val text = binding.editText.text.toString()
                 if (text.isNotEmpty()) {
-                    binding.editText.setText("")
                     cb.invoke(text)
                 } else false
             } else {
@@ -108,6 +120,17 @@ class WCMaterialOutlinedEditTextView @JvmOverloads constructor(
 
     fun setMaxLength(max: Int) {
         binding.editText.filters += InputFilter.LengthFilter(max)
+    }
+
+    fun showKeyboard(selectAll: Boolean = false) {
+        if (binding.editText.requestFocus()) {
+            if (selectAll) {
+                binding.editText.selectAll()
+            }
+            binding.editText.postDelayed({
+                ActivityUtils.showKeyboard(binding.editText)
+            }, 100)
+        }
     }
 
     override fun onSaveInstanceState(): Parcelable? {

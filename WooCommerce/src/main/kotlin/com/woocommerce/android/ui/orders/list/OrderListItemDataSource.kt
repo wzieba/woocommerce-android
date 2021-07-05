@@ -24,6 +24,7 @@ import org.wordpress.android.fluxc.model.LocalOrRemoteId.RemoteId
 import org.wordpress.android.fluxc.model.WCOrderListDescriptor
 import org.wordpress.android.fluxc.model.WCOrderSummaryModel
 import org.wordpress.android.fluxc.model.list.datasource.ListItemDataSourceInterface
+import org.wordpress.android.fluxc.store.WCOrderFetcher
 import org.wordpress.android.fluxc.store.WCOrderStore
 import org.wordpress.android.fluxc.store.WCOrderStore.FetchOrderListPayload
 import org.wordpress.android.util.DateTimeUtils
@@ -40,7 +41,7 @@ class OrderListItemDataSource(
     private val dispatcher: Dispatcher,
     private val orderStore: WCOrderStore,
     private val networkStatus: NetworkStatus,
-    private val fetcher: OrderFetcher,
+    private val fetcher: WCOrderFetcher,
     private val resourceProvider: ResourceProvider
 ) : ListItemDataSourceInterface<WCOrderListDescriptor, OrderListItemIdentifier, OrderListItemUIType> {
     override fun getItemsAndFetchIfNecessary(
@@ -123,7 +124,7 @@ class OrderListItemDataSource(
             // Check if future-dated orders should be excluded from the results list.
             if (listDescriptor.excludeFutureOrders) {
                 val currentDate = Date()
-                if (DateUtils().isAfterDate(currentDate, date)) {
+                if (DateUtils.isAfterDate(currentDate, date)) {
                     // This order is dated for the future so skip adding it to the list
                     return@forEach
                 }

@@ -1,35 +1,37 @@
 package com.woocommerce.android.ui.products
 
 import android.os.Parcelable
-import com.squareup.inject.assisted.Assisted
-import com.squareup.inject.assisted.AssistedInject
+import androidx.lifecycle.SavedStateHandle
 import com.woocommerce.android.R.string
 import com.woocommerce.android.RequestCodes
-import com.woocommerce.android.di.ViewModelAssistedFactory
 import com.woocommerce.android.extensions.isEquivalentTo
 import com.woocommerce.android.extensions.isNotSet
 import com.woocommerce.android.model.TaxClass
 import com.woocommerce.android.tools.SelectedSite
 import com.woocommerce.android.ui.products.models.SiteParameters
-import com.woocommerce.android.util.CoroutineDispatchers
 import com.woocommerce.android.viewmodel.LiveDataDelegate
 import com.woocommerce.android.viewmodel.MultiLiveEvent.Event.Exit
 import com.woocommerce.android.viewmodel.MultiLiveEvent.Event.ExitWithResult
-import com.woocommerce.android.viewmodel.SavedStateWithArgs
 import com.woocommerce.android.viewmodel.ScopedViewModel
-import kotlinx.android.parcel.Parcelize
+import com.woocommerce.android.viewmodel.navArgs
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.parcelize.Parcelize
+import org.wordpress.android.fluxc.model.WCSettingsModel.CurrencyPosition
+import org.wordpress.android.fluxc.model.WCSettingsModel.CurrencyPosition.LEFT
+import org.wordpress.android.fluxc.model.WCSettingsModel.CurrencyPosition.LEFT_SPACE
 import org.wordpress.android.fluxc.store.WooCommerceStore
 import java.math.BigDecimal
 import java.util.Date
+import javax.inject.Inject
 
-class ProductPricingViewModel @AssistedInject constructor(
-    @Assisted savedState: SavedStateWithArgs,
-    dispatchers: CoroutineDispatchers,
+@HiltViewModel
+class ProductPricingViewModel @Inject constructor(
+    savedState: SavedStateHandle,
     private val productRepository: ProductDetailRepository,
     wooCommerceStore: WooCommerceStore,
     selectedSite: SelectedSite,
     parameterRepository: ParameterRepository
-) : ScopedViewModel(savedState, dispatchers) {
+) : ScopedViewModel(savedState) {
     companion object {
         private const val DEFAULT_DECIMAL_PRECISION = 2
         private const val KEY_PRODUCT_PARAMETERS = "key_product_parameters"
@@ -57,7 +59,8 @@ class ProductPricingViewModel @AssistedInject constructor(
             ?: DEFAULT_DECIMAL_PRECISION
 
         viewState = viewState.copy(
-            currency = parameters.currencyCode,
+            currency = parameters.currencySymbol,
+            currencyPosition = parameters.currencyPosition,
             decimals = decimals,
             taxClassList = if (isProductPricing) productRepository.getTaxClassesForSite() else null,
             isTaxSectionVisible = isProductPricing
@@ -118,9 +121,9 @@ class ProductPricingViewModel @AssistedInject constructor(
         val regularPrice = pricingData.regularPrice ?: BigDecimal.ZERO
         viewState = if (inputValue > regularPrice) {
             viewState.copy(salePriceErrorMessage = string.product_pricing_update_sale_price_error)
-        } else if (pricingData.isSaleScheduled == true && inputValue.isNotSet())
+        } else if (pricingData.isSaleScheduled == true && inputValue.isNotSet()) {
             viewState.copy(salePriceErrorMessage = string.product_pricing_scheduled_sale_price_error)
-        else {
+        } else {
             viewState.copy(salePriceErrorMessage = 0)
         }
     }
@@ -166,12 +169,15 @@ class ProductPricingViewModel @AssistedInject constructor(
         val taxClassList: List<TaxClass>? = null,
         val salePriceErrorMessage: Int? = null,
         val pricingData: PricingData = PricingData(),
-        val isTaxSectionVisible: Boolean? = null
+        val isTaxSectionVisible: Boolean? = null,
+        private val currencyPosition: CurrencyPosition? = null
     ) : Parcelable {
         val isRemoveEndDateButtonVisible: Boolean
             get() = pricingData.saleEndDate != null
         val canSaveChanges: Boolean
             get() = salePriceErrorMessage == 0 || salePriceErrorMessage == null
+        val isCurrencyPrefix: Boolean
+            get() = currencyPosition == LEFT || currencyPosition == LEFT_SPACE
     }
 
     @Parcelize
@@ -201,7 +207,4 @@ class ProductPricingViewModel @AssistedInject constructor(
             return super.hashCode()
         }
     }
-
-    @AssistedInject.Factory
-    interface Factory : ViewModelAssistedFactory<ProductPricingViewModel>
 }

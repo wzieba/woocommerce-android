@@ -21,7 +21,7 @@ class LoginAnalyticsTracker(
     override fun trackAnalyticsSignIn(isWpcomLogin: Boolean) {
         AnalyticsTracker.refreshMetadata(accountStore.account?.userName)
         val properties = HashMap<String, Boolean>()
-        properties["dotcom_user"] = isWpcomLogin // checkstyle ignore
+        properties["dotcom_user"] = isWpcomLogin
         AnalyticsTracker.track(AnalyticsTracker.Stat.SIGNED_IN, properties)
         if (!isWpcomLogin) {
             AnalyticsTracker.track(AnalyticsTracker.Stat.ADDED_SELF_HOSTED_SITE)
@@ -294,10 +294,6 @@ class LoginAnalyticsTracker(
 
     override fun emailFormScreenResumed() {
         unifiedLoginTracker.setStep(Step.ENTER_EMAIL_ADDRESS)
-    }
-
-    override fun trackEmailSignupConfirmationViewed() {
-        TODO("Not yet implemented")
     }
 
     override fun trackSocialSignupConfirmationViewed() {

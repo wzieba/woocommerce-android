@@ -15,51 +15,13 @@
             android:layout_height="wrap_content"
             android:orientation="vertical">
 
-            <androidx.constraintlayout.widget.ConstraintLayout
+            <com.woocommerce.android.widgets.WCWarningBanner
                 android:id="@+id/edit_warning_banner"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:background="@color/warning_banner_background_color"
                 android:visibility="gone"
-                tools:visibility="visible">
-
-                <ImageView
-                    android:id="@+id/warning_icon"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="@dimen/major_100"
-                    android:layout_marginTop="@dimen/major_100"
-                    android:layout_marginEnd="@dimen/major_100"
-                    android:contentDescription="@string/product_property_edit"
-                    android:src="@drawable/ic_info_outline_24dp"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toTopOf="parent"
-                    app:tint="@color/warning_banner_foreground_color"
-                    tools:visibility="visible" />
-
-                <com.google.android.material.textview.MaterialTextView
-                    android:id="@+id/warning_message"
-                    style="@style/Woo.TextView.Warning"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="@dimen/major_200"
-                    android:layout_marginTop="@dimen/major_100"
-                    android:layout_marginBottom="@dimen/major_100"
-                    tools:text="@string/shipping_label_payments_cant_edit_warning"
-                    app:layout_constraintBottom_toTopOf="@id/warning_divider"
-                    app:layout_constraintEnd_toEndOf="parent"
-                    app:layout_constraintStart_toEndOf="@id/warning_icon"
-                    app:layout_constraintTop_toTopOf="parent" />
-
-                <View
-                    android:id="@+id/warning_divider"
-                    style="@style/Woo.Divider.Warning"
-                    android:layout_width="0dp"
-                    app:layout_constraintBottom_toBottomOf="parent"
-                    app:layout_constraintEnd_toEndOf="parent"
-                    app:layout_constraintStart_toStartOf="parent" />
-
-            </androidx.constraintlayout.widget.ConstraintLayout>
+                tools:text="@string/shipping_label_payments_cant_edit_warning"
+                tools:visibility="visible" />
 
             <com.google.android.material.textview.MaterialTextView
                 android:id="@+id/payment_methods_section_title"
@@ -79,6 +41,21 @@
                 android:layout_marginTop="@dimen/major_100"
                 tools:itemCount="2"
                 tools:listitem="@layout/shipping_label_payment_method_list_item" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/add_first_payment_method_button"
+                style="@style/Woo.Button.Outlined"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/major_100"
+                android:layout_marginTop="@dimen/major_100"
+                android:layout_marginEnd="@dimen/major_100"
+                android:layout_marginBottom="@dimen/major_100"
+                android:text="@string/shipping_label_payments_add_first_credit_card"
+                app:icon="@drawable/ic_external"
+                app:iconGravity="textEnd"
+                app:iconPadding="@dimen/minor_100"
+                android:visibility="gone"/>
 
             <com.google.android.material.textview.MaterialTextView
                 android:id="@+id/payments_info"
@@ -107,16 +84,16 @@
                 tools:ignore="RtlSymmetry"
                 tools:text="Email the label purchase receipts to username (username) at user@email.com" />
 
-            <!-- Not supported in M3 -->
             <com.google.android.material.button.MaterialButton
+                android:id="@+id/add_payment_method_button"
                 style="@style/Woo.Button.Outlined"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="@dimen/major_100"
+                android:layout_marginTop="@dimen/major_100"
                 android:layout_marginEnd="@dimen/major_100"
                 android:layout_marginBottom="@dimen/major_100"
                 android:text="@string/shipping_label_payments_add_credit_card"
-                android:visibility="gone"
                 app:icon="@drawable/ic_external"
                 app:iconGravity="textEnd"
                 app:iconPadding="@dimen/minor_100" />
@@ -125,9 +102,9 @@
 
     </ScrollView>
 
-    <ProgressBar
-        android:id="@+id/loading_progress"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center" />
+    <com.woocommerce.android.widgets.WCEmptyView
+        android:id="@+id/error_view"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone"/>
 </FrameLayout>

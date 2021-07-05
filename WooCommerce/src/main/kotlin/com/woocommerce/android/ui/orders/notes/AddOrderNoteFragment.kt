@@ -24,21 +24,21 @@ import com.woocommerce.android.viewmodel.MultiLiveEvent.Event.Exit
 import com.woocommerce.android.viewmodel.MultiLiveEvent.Event.ExitWithResult
 import com.woocommerce.android.viewmodel.MultiLiveEvent.Event.ShowDialog
 import com.woocommerce.android.viewmodel.MultiLiveEvent.Event.ShowSnackbar
-import com.woocommerce.android.viewmodel.ViewModelFactory
 import com.woocommerce.android.widgets.CustomProgressDialog
+import dagger.hilt.android.AndroidEntryPoint
 import org.wordpress.android.util.ActivityUtils
 import javax.inject.Inject
 
+@AndroidEntryPoint
 class AddOrderNoteFragment : BaseFragment(R.layout.fragment_add_order_note), BackPressListener {
     companion object {
         const val TAG = "AddOrderNoteFragment"
         const val KEY_ADD_NOTE_RESULT = "key_add_note_result"
     }
 
-    @Inject lateinit var viewModelFactory: ViewModelFactory
     @Inject lateinit var uiMessageResolver: UIMessageResolver
 
-    private val viewModel: AddOrderNoteViewModel by viewModels { viewModelFactory }
+    private val viewModel: AddOrderNoteViewModel by viewModels()
 
     private var progressDialog: CustomProgressDialog? = null
 

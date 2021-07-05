@@ -3,10 +3,11 @@ package com.woocommerce.android.model
 import android.os.Parcelable
 import com.woocommerce.android.extensions.roundError
 import com.woocommerce.android.ui.products.ProductHelper
-import kotlinx.android.parcel.IgnoredOnParcel
-import kotlinx.android.parcel.Parcelize
+import kotlinx.parcelize.IgnoredOnParcel
+import kotlinx.parcelize.Parcelize
 import org.wordpress.android.fluxc.model.refunds.WCRefundModel
 import org.wordpress.android.fluxc.model.refunds.WCRefundModel.WCRefundItem
+import org.wordpress.android.fluxc.model.refunds.WCRefundModel.WCRefundShippingLine
 import java.math.RoundingMode.HALF_UP
 import java.math.BigDecimal
 import java.util.Date
@@ -18,7 +19,8 @@ data class Refund(
     val amount: BigDecimal,
     val reason: String?,
     val automaticGatewayRefund: Boolean,
-    val items: List<Item>
+    val items: List<Item>,
+    val shippingLines: List<ShippingLine>
 ) : Parcelable {
     @Parcelize
     data class Item(
@@ -31,11 +33,20 @@ data class Refund(
         val total: BigDecimal = BigDecimal.ZERO,
         val totalTax: BigDecimal = BigDecimal.ZERO,
         val sku: String = "",
-        val price: BigDecimal = BigDecimal.ZERO
+        val price: BigDecimal = BigDecimal.ZERO,
+        val orderItemId: Long = 0
     ) : Parcelable {
         @IgnoredOnParcel
         val uniqueId: Long = ProductHelper.productOrVariationId(productId, variationId)
     }
+    @Parcelize
+    data class ShippingLine(
+        val itemId: Long,
+        val methodId: String,
+        val methodTitle: String,
+        val totalTax: BigDecimal,
+        val total: BigDecimal
+    ) : Parcelable
 
     fun getRefundMethod(
         paymentMethodTitle: String,
@@ -57,7 +68,8 @@ fun WCRefundModel.toAppModel(): Refund {
             amount.roundError(),
             reason,
             automaticGatewayRefund,
-            items.map { it.toAppModel() }
+            items.map { it.toAppModel() },
+            shippingLineItems.map { it.toAppModel() }
     )
 }
 
@@ -72,21 +84,29 @@ fun WCRefundItem.toAppModel(): Refund.Item {
             -(total ?: BigDecimal.ZERO).roundError(), // WCRefundItem.total is NEGATIVE
             -totalTax.roundError(), // WCRefundItem.totalTax is NEGATIVE
             sku ?: "",
-            price?.roundError() ?: BigDecimal.ZERO
+            price?.roundError() ?: BigDecimal.ZERO,
+        metaData?.get(0)?.value?.toString()?.toLongOrNull() ?: -1
     )
 }
 
-fun List<Refund>.hasNonRefundedProducts(products: List<Order.Item>) =
-    getMaxRefundQuantities(products).values.any { it > 0 }
+fun WCRefundShippingLine.toAppModel(): Refund.ShippingLine {
+    return Refund.ShippingLine(
+        itemId = metaData?.get(0)?.value?.toString()?.toLongOrNull() ?: -1,
+        methodId = methodId ?: "",
+        methodTitle = methodTitle ?: "",
+        totalTax = -totalTax.roundError(), // WCRefundShippineLine.totalTax is NEGATIVE
+        total = (total).roundError() // WCREfundShippingLine.total is NEGATIVE
+    )
+}
 
 fun List<Refund>.getNonRefundedProducts(
     products: List<Order.Item>
 ): List<Order.Item> {
     val leftoverProducts = getMaxRefundQuantities(products).filter { it.value > 0 }
     return products
-        .filter { leftoverProducts.contains(it.uniqueId) }
+        .filter { leftoverProducts.contains(it.itemId) }
         .map {
-            val newQuantity = leftoverProducts[it.uniqueId]
+            val newQuantity = leftoverProducts[it.itemId]
             val quantity = it.quantity.toBigDecimal()
             val totalTax = if (quantity > BigDecimal.ZERO) {
                 it.totalTax.divide(quantity, 2, HALF_UP)
@@ -107,9 +127,9 @@ fun List<Refund>.getMaxRefundQuantities(
     products: List<Order.Item>
 ): Map<Long, Int> {
     val map = mutableMapOf<Long, Int>()
-    val groupedRefunds = this.flatMap { it.items }.groupBy { it.uniqueId }
+    val groupedRefunds = this.flatMap { it.items }.groupBy { it.orderItemId }
     products.map { item ->
-        map[item.uniqueId] = item.quantity - (groupedRefunds[item.uniqueId]?.sumBy { it.quantity } ?: 0)
+        map[item.itemId] = item.quantity - (groupedRefunds[item.itemId]?.sumBy { it.quantity } ?: 0)
     }
     return map
 }

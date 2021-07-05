@@ -32,25 +32,27 @@ import com.woocommerce.android.viewmodel.MultiLiveEvent.Event.Exit
 import com.woocommerce.android.viewmodel.MultiLiveEvent.Event.ExitWithResult
 import com.woocommerce.android.viewmodel.MultiLiveEvent.Event.ShowDialog
 import com.woocommerce.android.viewmodel.MultiLiveEvent.Event.ShowSnackbar
-import com.woocommerce.android.viewmodel.ViewModelFactory
 import com.woocommerce.android.widgets.AppRatingDialog
 import com.woocommerce.android.widgets.CustomProgressDialog
+import dagger.hilt.android.AndroidEntryPoint
 import org.wordpress.android.util.ActivityUtils
 import java.util.Calendar
 import javax.inject.Inject
 import org.wordpress.android.fluxc.utils.DateUtils as FluxCDateUtils
 
-class AddOrderShipmentTrackingFragment : BaseFragment(R.layout.fragment_add_shipment_tracking), BackPressListener {
+@AndroidEntryPoint
+class AddOrderShipmentTrackingFragment :
+    BaseFragment(R.layout.fragment_add_shipment_tracking), BackPressListener {
     companion object {
         const val KEY_ADD_SHIPMENT_TRACKING_RESULT = "key_add_shipment_tracking_result"
     }
 
     @Inject lateinit var networkStatus: NetworkStatus
     @Inject lateinit var uiMessageResolver: UIMessageResolver
-    @Inject lateinit var viewModelFactory: ViewModelFactory
     @Inject lateinit var navigator: OrderNavigator
+    @Inject lateinit var dateUtils: DateUtils
 
-    private val viewModel: AddOrderShipmentTrackingViewModel by viewModels { viewModelFactory }
+    private val viewModel: AddOrderShipmentTrackingViewModel by viewModels()
 
     private var isSelectedProviderCustom = false
     private var dateShippedPickerDialog: DatePickerDialog? = null
@@ -115,7 +117,7 @@ class AddOrderShipmentTrackingFragment : BaseFragment(R.layout.fragment_add_ship
             }
 
             new.date.takeIfNotEqualTo(old?.date) {
-                DateUtils().getLocalizedLongDateString(requireActivity(), it)
+                dateUtils.getLocalizedLongDateString(requireActivity(), it)
                     .let { localizedString ->
                         binding.date.setText(localizedString.orEmpty())
                     }

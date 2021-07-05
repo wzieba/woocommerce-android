@@ -1,54 +1,47 @@
 package com.woocommerce.android.ui.products.downloads
 
-import androidx.lifecycle.SavedStateHandle
 import com.nhaarman.mockitokotlin2.doReturn
 import com.nhaarman.mockitokotlin2.mock
 import com.woocommerce.android.R
+import com.woocommerce.android.initSavedStateHandle
 import com.woocommerce.android.model.ProductFile
 import com.woocommerce.android.ui.products.downloads.ProductDownloadDetailsViewModel.ProductDownloadDetailsEvent.AddFileAndExitEvent
 import com.woocommerce.android.ui.products.downloads.ProductDownloadDetailsViewModel.ProductDownloadDetailsEvent.DeleteFileEvent
 import com.woocommerce.android.ui.products.downloads.ProductDownloadDetailsViewModel.ProductDownloadDetailsEvent.UpdateFileAndExitEvent
 import com.woocommerce.android.ui.products.downloads.ProductDownloadDetailsViewModel.ProductDownloadDetailsViewState
-import com.woocommerce.android.util.CoroutineTestRule
 import com.woocommerce.android.viewmodel.BaseUnitTest
 import com.woocommerce.android.viewmodel.MultiLiveEvent.Event
 import com.woocommerce.android.viewmodel.MultiLiveEvent.Event.ShowDialog
 import com.woocommerce.android.viewmodel.ResourceProvider
-import com.woocommerce.android.viewmodel.SavedStateWithArgs
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.assertj.core.api.Assertions.assertThat
-import org.junit.Rule
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 import kotlin.test.assertEquals
 
 @ExperimentalCoroutinesApi
+@RunWith(RobolectricTestRunner::class)
 class ProductDownloadDetailsViewModelTest : BaseUnitTest() {
     private lateinit var viewModel: ProductDownloadDetailsViewModel
     private val file = ProductFile(id = "id", name = "file", url = "url")
-    private val savedStateForEditing = SavedStateWithArgs(
-        SavedStateHandle(),
-        null,
-        ProductDownloadDetailsFragmentArgs(isEditing = true, productFile = file)
+    private val savedStateForEditing = ProductDownloadDetailsFragmentArgs(isEditing = true, productFile = file)
+        .initSavedStateHandle()
+    private val savedStateForAdding = ProductDownloadDetailsFragmentArgs(
+        isEditing = false,
+        productFile = file.copy(id = null)
     )
-    private val savedStateForAdding = SavedStateWithArgs(
-        SavedStateHandle(),
-        null,
-        ProductDownloadDetailsFragmentArgs(isEditing = false, productFile = file.copy(id = null))
-    )
+        .initSavedStateHandle()
 
-    @get:Rule
-    var coroutinesTestRule = CoroutineTestRule()
-
-    private val resourceProvider: ResourceProvider = mock() {
+    private val resourceProvider: ResourceProvider = mock {
         on { getString(R.string.product_downloadable_files_edit_title) } doReturn "file"
     }
 
     @Test
     fun `test has the correct init state`() {
         viewModel = ProductDownloadDetailsViewModel(
-            savedStateForEditing,
-            coroutinesTestRule.testDispatchers,
-            resourceProvider
+                savedStateForEditing,
+                resourceProvider
         )
 
         var state: ProductDownloadDetailsViewState? = null
@@ -61,15 +54,11 @@ class ProductDownloadDetailsViewModelTest : BaseUnitTest() {
     @Test
     fun `test display the correct title if name is empty`() {
         val file = file.copy(name = "")
-        val savedStateWithArgs = SavedStateWithArgs(
-            SavedStateHandle(),
-            null,
-            ProductDownloadDetailsFragmentArgs(isEditing = true, productFile = file)
-        )
+        val savedState = ProductDownloadDetailsFragmentArgs(isEditing = true, productFile = file)
+            .initSavedStateHandle()
         viewModel = ProductDownloadDetailsViewModel(
-            savedStateWithArgs,
-            coroutinesTestRule.testDispatchers,
-            resourceProvider
+                savedState,
+                resourceProvider
         )
 
         val title = viewModel.screenTitle
@@ -80,9 +69,8 @@ class ProductDownloadDetailsViewModelTest : BaseUnitTest() {
     @Test
     fun `test file name edit`() {
         viewModel = ProductDownloadDetailsViewModel(
-            savedStateForEditing,
-            coroutinesTestRule.testDispatchers,
-            resourceProvider
+                savedStateForEditing,
+                resourceProvider
         )
 
         val newName = "new name"
@@ -98,9 +86,8 @@ class ProductDownloadDetailsViewModelTest : BaseUnitTest() {
     @Test
     fun `test file url edit`() {
         viewModel = ProductDownloadDetailsViewModel(
-            savedStateForEditing,
-            coroutinesTestRule.testDispatchers,
-            resourceProvider
+                savedStateForEditing,
+                resourceProvider
         )
 
         val newUrl = "new url"
@@ -116,9 +103,8 @@ class ProductDownloadDetailsViewModelTest : BaseUnitTest() {
     @Test
     fun `test dispatch update event when editing`() {
         viewModel = ProductDownloadDetailsViewModel(
-            savedStateForEditing,
-            coroutinesTestRule.testDispatchers,
-            resourceProvider
+                savedStateForEditing,
+                resourceProvider
         )
 
         val newUrl = "http://url.com"
@@ -138,9 +124,8 @@ class ProductDownloadDetailsViewModelTest : BaseUnitTest() {
     @Test
     fun `test dispatch add event when adding file`() {
         viewModel = ProductDownloadDetailsViewModel(
-            savedStateForAdding,
-            coroutinesTestRule.testDispatchers,
-            resourceProvider
+                savedStateForAdding,
+                resourceProvider
         )
 
         val newUrl = "http://url.com"
@@ -160,9 +145,8 @@ class ProductDownloadDetailsViewModelTest : BaseUnitTest() {
     @Test
     fun `test delete file`() {
         viewModel = ProductDownloadDetailsViewModel(
-            savedStateForEditing,
-            coroutinesTestRule.testDispatchers,
-            resourceProvider
+                savedStateForEditing,
+                resourceProvider
         )
 
         val events = mutableListOf<Event>()
@@ -178,9 +162,8 @@ class ProductDownloadDetailsViewModelTest : BaseUnitTest() {
     @Test
     fun `test field validation when url empty`() {
         viewModel = ProductDownloadDetailsViewModel(
-            savedStateForEditing,
-            coroutinesTestRule.testDispatchers,
-            resourceProvider
+                savedStateForEditing,
+                resourceProvider
         )
 
         viewModel.onFileUrlChanged("")
@@ -195,9 +178,8 @@ class ProductDownloadDetailsViewModelTest : BaseUnitTest() {
     @Test
     fun `test field validation when url invalid`() {
         viewModel = ProductDownloadDetailsViewModel(
-            savedStateForEditing,
-            coroutinesTestRule.testDispatchers,
-            resourceProvider
+                savedStateForEditing,
+                resourceProvider
         )
 
         viewModel.onFileUrlChanged("invalid_url")
@@ -212,9 +194,8 @@ class ProductDownloadDetailsViewModelTest : BaseUnitTest() {
     @Test
     fun `test field validation when url without path and name empty`() {
         viewModel = ProductDownloadDetailsViewModel(
-            savedStateForEditing,
-            coroutinesTestRule.testDispatchers,
-            resourceProvider
+                savedStateForEditing,
+                resourceProvider
         )
 
         viewModel.onFileUrlChanged("http://testurl.com/")
@@ -230,9 +211,8 @@ class ProductDownloadDetailsViewModelTest : BaseUnitTest() {
     @Test
     fun `test field validation when url with path and name empty`() {
         viewModel = ProductDownloadDetailsViewModel(
-            savedStateForEditing,
-            coroutinesTestRule.testDispatchers,
-            resourceProvider
+                savedStateForEditing,
+                resourceProvider
         )
 
         viewModel.onFileUrlChanged("http://testurl.com/path/file.jpg")

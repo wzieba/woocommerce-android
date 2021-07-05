@@ -19,7 +19,9 @@ import com.woocommerce.android.ui.products.ProductNavigationTarget.ViewProductPu
 import com.woocommerce.android.ui.products.ProductStatus
 import com.woocommerce.android.ui.products.ProductType.SIMPLE
 import com.woocommerce.android.ui.products.settings.ProductCatalogVisibilityFragment.Companion.ARG_CATALOG_VISIBILITY
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class ProductSettingsFragment : BaseProductFragment(R.layout.fragment_product_settings) {
     private var _binding: FragmentProductSettingsBinding? = null
     private val binding get() = _binding!!
@@ -50,18 +52,6 @@ class ProductSettingsFragment : BaseProductFragment(R.layout.fragment_product_se
         binding.productMenuOrder.setOnClickListener {
             AnalyticsTracker.track(Stat.PRODUCT_SETTINGS_MENU_ORDER_TAPPED)
             viewModel.onSettingsMenuOrderButtonClicked()
-        }
-
-        val isSimple = viewModel.getProduct().productDraft?.productType == SIMPLE
-        if (isSimple) {
-            binding.productIsVirtual.visibility = View.VISIBLE
-            binding.productIsVirtual.setOnCheckedChangeListener { _, isChecked ->
-                AnalyticsTracker.track(Stat.PRODUCT_SETTINGS_VIRTUAL_TOGGLED)
-                viewModel.updateProductDraft(isVirtual = isChecked)
-                activity?.invalidateOptionsMenu()
-            }
-        } else {
-            binding.productIsVirtual.visibility = View.GONE
         }
 
         binding.productReviewsAllowed.visibility = View.VISIBLE
@@ -170,7 +160,6 @@ class ProductSettingsFragment : BaseProductFragment(R.layout.fragment_product_se
         binding.productCatalogVisibility.optionValue = product.catalogVisibility?.toLocalizedString(requireActivity())
         binding.productSlug.optionValue = valueOrNotSet(product.slug)
         binding.productReviewsAllowed.isChecked = product.reviewsAllowed
-        binding.productIsVirtual.isChecked = product.isVirtual
         binding.productPurchaseNote.optionValue = valueOrNotSet(product.purchaseNote.fastStripHtml())
         binding.productVisibility.optionValue = viewModel.getProductVisibility().toLocalizedString(requireActivity())
         binding.productMenuOrder.optionValue = valueOrNotSet(product.menuOrder)

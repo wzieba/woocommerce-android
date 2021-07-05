@@ -22,7 +22,7 @@ import com.woocommerce.android.ui.orders.shippinglabels.creation.ShippingLabelsS
 import com.woocommerce.android.ui.orders.shippinglabels.creation.ShippingLabelsStateMachine.StepStatus.READY
 import com.woocommerce.android.ui.orders.shippinglabels.creation.ShippingLabelsStateMachine.StepsState
 import com.woocommerce.android.ui.orders.shippinglabels.creation.ShippingLabelsStateMachine.Transition
-import com.woocommerce.android.util.CoroutineTestRule
+import com.woocommerce.android.viewmodel.BaseUnitTest
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.take
@@ -30,11 +30,11 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runBlockingTest
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.Before
-import org.junit.Rule
 import org.junit.Test
+import java.math.BigDecimal
 
 @ExperimentalCoroutinesApi
-class ShippingLabelsStateMachineTest {
+class ShippingLabelsStateMachineTest : BaseUnitTest() {
     private lateinit var stateMachine: ShippingLabelsStateMachine
 
     private val order = OrderTestUtils.generateOrder().toAppModel()
@@ -46,14 +46,15 @@ class ShippingLabelsStateMachineTest {
             originAddressStep = OriginAddressStep(READY, originAddress),
             shippingAddressStep = ShippingAddressStep(NOT_READY, shippingAddress),
             packagingStep = PackagingStep(NOT_READY, emptyList()),
-            customsStep = CustomsStep(NOT_READY),
+            customsStep = CustomsStep(
+                NOT_READY,
+                isVisible = originAddress.country != shippingAddress.country,
+                data = null
+            ),
             carrierStep = CarrierStep(NOT_READY, emptyList()),
             paymentsStep = PaymentsStep(NOT_READY, null)
         )
     )
-
-    @get:Rule
-    var coroutinesTestRule = CoroutineTestRule()
 
     @Before
     fun stateMachine() {
@@ -118,20 +119,26 @@ class ShippingLabelsStateMachineTest {
     fun `test show packages step`() = coroutinesTestRule.testDispatcher.runBlockingTest {
         val packagesList = listOf(
             ShippingLabelPackage(
+                packageId = "package1",
                 selectedPackage = ShippingPackage(
                     "id",
                     "title",
                     false,
                     "provider",
-                    PackageDimensions(10.0, 10.0, 10.0)
+                    PackageDimensions(10.0f, 10.0f, 10.0f),
+                    1f
                 ),
-                weight = 10.0,
-                items = listOf(Item(10L, "item", "attributes", "10kgs"))
+                weight = 10.0f,
+                items = listOf(Item(10L, "item", "attributes", 1f, 10f, BigDecimal.valueOf(20)))
             )
         )
 
         stateMachine.start(order.toString())
         stateMachine.handleEvent(Event.DataLoaded(order, originAddress, shippingAddress, null))
+        stateMachine.handleEvent(Event.OriginAddressValidationStarted)
+        stateMachine.handleEvent(Event.AddressValidated(originAddress))
+        stateMachine.handleEvent(Event.ShippingAddressValidationStarted)
+        stateMachine.handleEvent(Event.AddressValidated(shippingAddress))
         stateMachine.handleEvent(Event.PackageSelectionStarted)
 
         assertThat(stateMachine.transitions.value.sideEffect).isEqualTo(SideEffect.ShowPackageOptions(emptyList()))
@@ -139,6 +146,8 @@ class ShippingLabelsStateMachineTest {
         stateMachine.handleEvent(Event.PackagesSelected(packagesList))
 
         val newStepsState = data.stepsState.copy(
+            originAddressStep = data.stepsState.originAddressStep.copy(status = DONE),
+            shippingAddressStep = data.stepsState.shippingAddressStep.copy(status = DONE),
             packagingStep = data.stepsState.packagingStep.copy(status = DONE, data = packagesList),
             carrierStep = data.stepsState.carrierStep.copy(status = READY)
         )

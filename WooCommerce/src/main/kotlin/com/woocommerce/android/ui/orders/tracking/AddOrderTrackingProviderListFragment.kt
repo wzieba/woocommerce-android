@@ -21,10 +21,11 @@ import com.woocommerce.android.ui.orders.tracking.AddOrderTrackingProviderListAd
 import com.woocommerce.android.util.StringUtils
 import com.woocommerce.android.viewmodel.MultiLiveEvent.Event.ExitWithResult
 import com.woocommerce.android.viewmodel.MultiLiveEvent.Event.ShowSnackbar
-import com.woocommerce.android.viewmodel.ViewModelFactory
 import com.woocommerce.android.widgets.SkeletonView
+import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
+@AndroidEntryPoint
 class AddOrderTrackingProviderListFragment : BaseFragment(R.layout.dialog_order_tracking_provider_list),
     OnQueryTextListener,
     OnProviderClickListener {
@@ -33,10 +34,9 @@ class AddOrderTrackingProviderListFragment : BaseFragment(R.layout.dialog_order_
         const val SHIPMENT_TRACKING_PROVIDER_RESULT = "tracking-provider-result"
     }
 
-    @Inject lateinit var viewModelFactory: ViewModelFactory
     @Inject lateinit var uiMessageResolver: UIMessageResolver
 
-    private val viewModel: AddOrderTrackingProviderListViewModel by viewModels { viewModelFactory }
+    private val viewModel: AddOrderTrackingProviderListViewModel by viewModels()
 
     private val providerListAdapter: AddOrderTrackingProviderListAdapter by lazy {
         val countryName = StringUtils.getCountryByCountryCode(requireContext(), viewModel.countryCode)

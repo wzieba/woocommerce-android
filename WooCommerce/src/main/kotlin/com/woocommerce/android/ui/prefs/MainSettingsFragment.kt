@@ -1,7 +1,6 @@
 package com.woocommerce.android.ui.prefs
 
 import android.app.Activity
-import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
@@ -39,13 +38,15 @@ import com.woocommerce.android.ui.sitepicker.SitePickerActivity
 import com.woocommerce.android.util.AnalyticsUtils
 import com.woocommerce.android.util.AppThemeUtils
 import com.woocommerce.android.util.ChromeCustomTabUtils
+import com.woocommerce.android.util.FeatureFlag.CARD_READER
 import com.woocommerce.android.util.ThemeOption
 import com.woocommerce.android.widgets.WCPromoTooltip
 import com.woocommerce.android.widgets.WCPromoTooltip.Feature
 import com.woocommerce.android.widgets.WooClickableSpan
-import dagger.android.support.AndroidSupportInjection
+import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
+@AndroidEntryPoint
 class MainSettingsFragment : Fragment(R.layout.fragment_settings_main), MainSettingsContract.View {
     companion object {
         const val TAG = "main-settings"
@@ -66,11 +67,6 @@ class MainSettingsFragment : Fragment(R.layout.fragment_settings_main), MainSett
     }
 
     private lateinit var settingsListener: AppSettingsListener
-
-    override fun onAttach(context: Context) {
-        AndroidSupportInjection.inject(this)
-        super.onAttach(context)
-    }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
@@ -115,6 +111,12 @@ class MainSettingsFragment : Fragment(R.layout.fragment_settings_main), MainSett
                     mapOf(AnalyticsTracker.KEY_STATE to AnalyticsUtils.getToggleStateLabel(isChecked))
             )
             AppPrefs.setImageOptimizationEnabled(isChecked)
+        }
+
+        updateStoreSettings()
+        binding.optionCardReader.setOnClickListener {
+            // TODO cardreader Add tracking
+            findNavController().navigateSafely(R.id.action_mainSettingsFragment_to_cardReaderDetailFragment)
         }
 
         binding.optionHelpAndSupport.setOnClickListener {
@@ -221,6 +223,7 @@ class MainSettingsFragment : Fragment(R.layout.fragment_settings_main), MainSett
         // knows it has changed
         if (requestCode == RequestCodes.SITE_PICKER && resultCode == Activity.RESULT_OK) {
             updateStoreViews()
+            updateStoreSettings()
             settingsListener.onSiteChanged()
         }
     }
@@ -241,6 +244,10 @@ class MainSettingsFragment : Fragment(R.layout.fragment_settings_main), MainSett
     private fun updateStoreViews() {
         binding.optionStore.optionTitle = presenter.getStoreDomainName()
         binding.optionStore.optionValue = presenter.getUserDisplayName()
+    }
+
+    private fun updateStoreSettings() {
+        binding.storeSettingsContainer.visibility = if (CARD_READER.isEnabled()) View.VISIBLE else View.GONE
     }
 
     /**

@@ -1,7 +1,14 @@
 package com.woocommerce.android.ui.sitepicker
 
+import com.woocommerce.android.AppPrefs
+import com.woocommerce.android.ui.common.UserEligibilityFetcher
 import com.woocommerce.android.util.WooLog
 import com.woocommerce.android.util.WooLog.T
+import com.woocommerce.android.util.payment.CardPresentEligibleFeatureChecker
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.greenrobot.eventbus.Subscribe
 import org.greenrobot.eventbus.ThreadMode
 import org.wordpress.android.fluxc.Dispatcher
@@ -12,17 +19,23 @@ import org.wordpress.android.fluxc.model.SiteModel
 import org.wordpress.android.fluxc.store.AccountStore
 import org.wordpress.android.fluxc.store.AccountStore.OnAccountChanged
 import org.wordpress.android.fluxc.store.SiteStore
+import org.wordpress.android.fluxc.store.SiteStore.FetchSitesPayload
 import org.wordpress.android.fluxc.store.SiteStore.OnSiteChanged
 import org.wordpress.android.fluxc.store.WooCommerceStore
 import org.wordpress.android.fluxc.store.WooCommerceStore.OnApiVersionFetched
 import org.wordpress.android.login.util.SiteUtils
 import javax.inject.Inject
 
-class SitePickerPresenter @Inject constructor(
+class SitePickerPresenter
+@Suppress("LongParameterList")
+@Inject constructor(
     private val dispatcher: Dispatcher,
     private val accountStore: AccountStore,
     private val siteStore: SiteStore,
-    private val wooCommerceStore: WooCommerceStore
+    private val wooCommerceStore: WooCommerceStore,
+    private val appPrefs: AppPrefs,
+    private val userEligibilityFetcher: UserEligibilityFetcher,
+    private val cardPresentEligibleFeatureChecker: CardPresentEligibleFeatureChecker
 ) : SitePickerContract.Presenter {
     private var view: SitePickerContract.View? = null
 
@@ -66,12 +79,28 @@ class SitePickerPresenter @Inject constructor(
     }
 
     override fun fetchSitesFromAPI() {
-        dispatcher.dispatch(SiteActionBuilder.newFetchSitesAction())
+        dispatcher.dispatch(SiteActionBuilder.newFetchSitesAction(FetchSitesPayload()))
     }
 
     override fun fetchUpdatedSiteFromAPI(site: SiteModel) {
         view?.showSkeleton(true)
         dispatcher.dispatch(SiteActionBuilder.newFetchSiteAction(site))
+    }
+
+    override fun fetchUserRoleFromAPI(site: SiteModel) {
+        coroutineScope.launch {
+            val fetchUserJob = async { userEligibilityFetcher.fetchUserInfo() }
+            async { cardPresentEligibleFeatureChecker.doCheck() }.await()
+            val userModel = fetchUserJob.await()
+            view?.hideProgressDialog()
+
+            userModel?.let {
+                userEligibilityFetcher.updateUserInfo(it)
+                withContext(Dispatchers.Main) {
+                    view?.userVerificationCompleted()
+                }
+            }
+        }
     }
 
     override fun loadSites() {
@@ -88,7 +117,7 @@ class SitePickerPresenter @Inject constructor(
     }
 
     override fun getSitesForLocalIds(siteIdList: IntArray): List<SiteModel> {
-        return siteIdList.map { siteStore.getSiteByLocalId(it) }
+        return siteIdList.toList().mapNotNull { siteStore.getSiteByLocalId(it) }
     }
 
     override fun getSiteModelByUrl(url: String): SiteModel? =

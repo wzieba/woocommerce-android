@@ -1,6 +1,5 @@
 package com.woocommerce.android.ui.products
 
-import android.content.Context
 import android.os.Bundle
 import android.view.Menu
 import android.view.MenuInflater
@@ -45,12 +44,12 @@ import com.woocommerce.android.ui.products.ProductListViewModel.ProductListEvent
 import com.woocommerce.android.ui.products.ProductListViewModel.ProductListEvent.ShowProductSortingBottomSheet
 import com.woocommerce.android.ui.products.ProductSortAndFiltersCard.ProductSortAndFilterListener
 import com.woocommerce.android.viewmodel.MultiLiveEvent.Event.ShowSnackbar
-import com.woocommerce.android.viewmodel.ViewModelFactory
 import com.woocommerce.android.widgets.SkeletonView
 import com.woocommerce.android.widgets.WCEmptyView.EmptyViewType
-import dagger.android.support.AndroidSupportInjection
+import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
+@AndroidEntryPoint
 class ProductListFragment : TopLevelFragment(R.layout.fragment_product_list),
     OnProductClickListener,
     ProductSortAndFilterListener,
@@ -63,12 +62,11 @@ class ProductListFragment : TopLevelFragment(R.layout.fragment_product_list),
         val PRODUCT_FILTER_RESULT_KEY = "product_filter_result"
     }
 
-    @Inject lateinit var viewModelFactory: ViewModelFactory
     @Inject lateinit var uiMessageResolver: UIMessageResolver
 
     private lateinit var productAdapter: ProductListAdapter
 
-    private val viewModel: ProductListViewModel by viewModels { viewModelFactory }
+    private val viewModel: ProductListViewModel by viewModels()
 
     private val skeletonView = SkeletonView()
 
@@ -113,11 +111,6 @@ class ProductListFragment : TopLevelFragment(R.layout.fragment_product_list),
         if (!viewModel.isSearching()) {
             viewModel.reloadProductsFromDb(excludeProductId = pendingTrashProductId)
         }
-    }
-
-    override fun onAttach(context: Context) {
-        AndroidSupportInjection.inject(this)
-        super.onAttach(context)
     }
 
     override fun onDestroyView() {
@@ -255,10 +248,12 @@ class ProductListFragment : TopLevelFragment(R.layout.fragment_product_list),
                                 searchQueryOrFilter = viewModel.getSearchQuery()
                             )
                         }
-                        new.filterCount?.compareTo(0) == 1 -> {
-                            requireBinding().emptyView.show(EmptyViewType.FILTER_RESULTS)
+                        new.filterCount?.compareTo(0) == 1 -> binding.emptyView.show(EmptyViewType.FILTER_RESULTS)
+                        else -> {
+                            binding.emptyView.show(EmptyViewType.PRODUCT_LIST) {
+                                showAddProductBottomSheet()
+                            }
                         }
-                        else -> requireBinding().emptyView.show(EmptyViewType.PRODUCT_LIST)
                     }
                 } else {
                     requireBinding().emptyView.hide()

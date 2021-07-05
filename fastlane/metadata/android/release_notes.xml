@@ -1,68 +1,102 @@
 <ar>
-6.2:
-بالنسبة إلى هذا الإصدار، ركزنا على إصلاحات الأخطاء وتحسينات الأداء.
+6.8:
+ارجع إلى الطلب الشائع، تظهر الآن شاشة تنفيذ الطلب عند النقر على زر "وضع علامة على الطلب على أنه مكتمل"!
+
+بالإضافة إلى ذلك، أصلحنا خطأ كان يخترق شاشة قائمة المنتج، وتمت إضافة رسالة خطأ للمستخدمين غير المصرح لهم الذين يحاولون الوصول إلى مخزنك.
 </ar>
 <de-DE>
-6.2:
-In dieser Release haben wir uns auf Fehlerbehebungen und die Verbesserung der Performance konzentriert.
+6.8:
+Auf großen Wunsch hin wird die Bestellabschluss-Ansicht nun angezeigt, nachdem du auf den Button „Bestellung als abgeschlossen markieren“ geklickt hast.
+
+Außerdem haben wir einen Fehler behoben, bei dem die Produktlistenansicht fehlerhaft dargestellt und unberechtigten Benutzern, die auf deinen Store zugreifen wollten, eine Fehlermeldung angezeigt wurde.
 </de-DE>
 <es-ES>
-6.2:
-En esta versión, nos hemos centrado en corregir errores y hacer mejoras de rendimiento.
+6.8:
+Por petición popular, ahora la pantalla de realizar pedido aparece al hacer clic en el botón de "Marcar el pedido como completado".
+
+Además, hemos corregido un error de la pantalla de la lista de productos y añadido un mensaje de error para los usuarios no autorizados que intenten acceder a tu tienda.
 </es-ES>
 <fr-FR>
-6.2 :
-Pour cette version, nous nous sommes concentrés sur les résolutions de bogues et l’amélioration des performances.
+6.8 :
+Suite à une demande récurrente, l’écran d’exécution de commande s’affiche désormais lorsque vous cliquez sur le bouton « Marquer la commande comme terminée » !
+
+De plus, nous avons résolu un bogue qui bloquait l’écran de la liste de produits et ajouté un message d’erreur pour les utilisateurs non autorisés qui tentent d’accéder à votre boutique.
 </fr-FR>
 <iw-IL>
-6.2:
-בגרסה הזאת התמקדנו בתיקון באגים ובשיפורים בביצועים.
+6.8:
+הודות לביקוש הרב, החזרנו את המסך שמאשר שההזמנה הושלמה לאחר שלוחצים על הכפתור "לסמן את ההזמנה כ'הושלמה'"!
+
+בנוסף, תיקנו את הבאג שגרם לתצוגה משובשת במסך של רשימת המוצרים והוספנו הודעת שגיאה למשתמשים ללא הרשאה אשר מנסים לגשת לחנות שלך.
 </iw-IL>
 <id>
-6.2:
-Untuk rilis ini, kami berfokus pada perbaikan bug dan peningkatan performa.
+6.8:
+Karena banyaknya permintaan, kini saat Anda mengklik tombol "Tandai pesanan selesai", layar penuhi pesanan akan muncul!
+
+Selain itu, kami telah memperbaiki bug yang mengganggu layar daftar produk dan menambahkan pesan error bagi pengguna tanpa izin yang mencoba mengakses toko Anda.
 </id>
 <it-IT>
-6.2:
-Per questo rilascio, ci siamo concentrati sulle correzioni dei bug e sui miglioramenti delle prestazioni.
+6.8:
+A grande richiesta, la schermata di evasione dell'ordine ora viene visualizzata quando fai clic sul pulsante "Contrassegna ordine come completo".
+
+In aggiunta, abbiamo corretto un bug che interrompeva la schermata dell'elenco dei prodotti e aggiunto un messaggio di errore per utenti non autorizzati che tentano di accedere al negozio.
 </it-IT>
 <ja-JP>
-6.2:
-このリリースでは、バグ修正とパフォーマンス向上に注力しました。
+6.8:
+たくさんのご要望にお応えし、「注文を完了としてマーク」ボタンをクリックすると注文フルフィルメント画面が表示されるようになりました。
+
+また製品リスト画面を崩すバグを修正し、オンラインストアにアクセスしようとする不正ユーザーにエラーメッセージが表示されるようになりました。
 </ja-JP>
 <ko-KR>
-6.2:
-이 릴리스의 경우 버그 수정 및 성능 향상에 집중했습니다.
+6.8:
+많이 사용하는 주문 처리 화면이 이제 "주문을 완료로 표시" 버튼을 클릭하면 표시됩니다!
+
+또한, 제품 목록 화면이 손상되는 버그를 수정하고 스토어 액세스를 시도하는 권한 없는 사용에 대한 오류 메시지를 추가했습니다.
 </ko-KR>
 <nl-NL>
-6.2:
-Deze release is toegespitst op het verhelpen van bugs en prestatieverbeteringen.
+6.8:
+Terug op veler verzoek: het scherm Bestelling voltooien wordt nu weergegeven als je klikt op de knop 'Bestelling markeren als voltooid'.
+
+Daarnaast hebben we een bug hersteld waardoor het scherm met de productlijst niet goed werd weergegeven en we hebben een foutbericht toegevoegd voor onbevoegde gebruikers die toegang proberen te krijgen tot je winkel.
 </nl-NL>
 <pt-BR>
-6.2:
-Para esta versão, focamos em corrigir bugs e melhorar o desempenho.
+6.8:
+De volta graças ao grande sucesso que teve, a tela de finalização de pedidos agora é exibida quando você clica no botão "Marcar pedido como concluído".
+
+Além disso, corrigimos um bug que causava erro na tela de lista de produtos e exibia uma mensagem de erro para usuários não autorizados que tentavam acessar sua loja.
 </pt-BR>
 <ru-RU>
-6.2:
-В этом выпуске мы сосредоточились на исправлении ошибок и повышении производительности.
+6.8:
+По многочисленным просьбам теперь при нажатии кнопки «Отметить заказ как выполненный» открывается окно выполняемых заказов!
+
+Мы также исправили ошибку, из-за которой неправильно отображался экран списка товаров, и добавили сообщение об ошибке для неавторизованных пользователей, которые пытаются войти в магазин.
 </ru-RU>
 <sv-SE>
-6.2:
-I den här versionen har vi fokuserat på buggkorrigeringar och prestandaförbättringar.
+6.8:
+På allmän begäran visas nu skärmen Orderhantering igen när du klickar på knappen "Markera beställning som slutförd"!
+
+Dessutom har vi korrigerat ett fel som bröt produktlisteskärmen och lagt till ett felmeddelande för obehöriga användare som försöker komma åt din butik.
 </sv-SE>
 <tr-TR>
-6.2:
-Bu sürümde, hata düzeltmeye ve performans iyileştirmelerine odaklandık.
+6.8:
+Yaygın talepler doğrultusunda, sipariş karşılama ekranı artık "Siparişi tamamlandı olarak işaretle" düğmesini tıkladığınızda görüntülenecek şekilde ayarlandı.
+
+Ayrıca, ürün listesi ekranını bozan bir hata düzeltildi ve mağazanıza erişmeye çalışan yetkisiz kullanıcılar için bir hata mesajı eklendi.
 </tr-TR>
 <zh-CN>
-6.2：
-在此版本中，我们重点关注错误修复和性能提升。
+6.8：
+应大众需求，现在点击“标记订单完成”按钮时，将显示订单完成屏幕！
+
+此外，我们还修复一个破坏产品列表屏幕的错误，并为尝试访问您商店的未授权用户添加了一条错误消息。
 </zh-CN>
 <zh-TW>
-6.2：
-此版本著重於修正錯誤和提升效能。
+6.8：
+在許多使用者的要求下，現在當你按一下「將訂單標示為完成」按鈕時，會顯示完成訂單畫面！
+
+另外，我們修正了會破壞產品清單畫面的錯誤，並新增未經授權使用者嘗試存取你的商店的錯誤訊息。
 </zh-TW>
 <en-US>
-6.2:
-For this release, we focused on bug fixes and performance improvements.
+6.8:
+Back by popular demand, the order fulfill screen now displays when you click the "Mark order complete" button!
+
+In addition, we fixed a bug that was breaking the product list screen and added an error message for unauthorized users who attempt to access your store. 
 </en-US>

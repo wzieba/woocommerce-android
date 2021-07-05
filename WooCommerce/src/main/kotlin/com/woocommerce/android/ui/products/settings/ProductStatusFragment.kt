@@ -14,7 +14,6 @@ import com.woocommerce.android.ui.products.ProductStatus.DRAFT
 import com.woocommerce.android.ui.products.ProductStatus.PENDING
 import com.woocommerce.android.ui.products.ProductStatus.PRIVATE
 import com.woocommerce.android.ui.products.ProductStatus.PUBLISH
-import com.woocommerce.android.ui.products.ProductStatus.TRASH
 
 /**
  * Settings screen which enables choosing a product status
@@ -44,7 +43,6 @@ class ProductStatusFragment : BaseProductSettingsFragment(R.layout.fragment_prod
         binding.btnPublishedPrivately.setOnClickListener(this)
         binding.btnDraft.setOnClickListener(this)
         binding.btnPending.setOnClickListener(this)
-        binding.btnTrashed.setOnClickListener(this)
 
         getButtonForStatus(selectedStatus)?.isChecked = true
 
@@ -75,7 +73,6 @@ class ProductStatusFragment : BaseProductSettingsFragment(R.layout.fragment_prod
             binding.btnPublishedPrivately.isChecked = it == binding.btnPublishedPrivately
             binding.btnDraft.isChecked = it == binding.btnDraft
             binding.btnPending.isChecked = it == binding.btnPending
-            binding.btnTrashed.isChecked = it == binding.btnTrashed
             selectedStatus = getStatusForButtonId(it.id)
         }
     }
@@ -99,7 +96,6 @@ class ProductStatusFragment : BaseProductSettingsFragment(R.layout.fragment_prod
             DRAFT -> binding.btnDraft
             PENDING -> binding.btnPending
             PRIVATE -> binding.btnPublishedPrivately
-            TRASH -> binding.btnTrashed
             else -> null
         }
     }
@@ -109,8 +105,7 @@ class ProductStatusFragment : BaseProductSettingsFragment(R.layout.fragment_prod
             R.id.btnPublished -> PUBLISH.toString()
             R.id.btnDraft -> DRAFT.toString()
             R.id.btnPending -> PENDING.toString()
-            R.id.btnPrivate -> PRIVATE.toString()
-            R.id.btnTrashed -> TRASH.toString()
+            R.id.btnPublishedPrivately -> PRIVATE.toString()
             else -> throw IllegalArgumentException()
         }
     }

@@ -9,39 +9,48 @@ import com.nhaarman.mockitokotlin2.spy
 import com.nhaarman.mockitokotlin2.whenever
 import com.woocommerce.android.R
 import com.woocommerce.android.RequestCodes
+import com.woocommerce.android.initSavedStateHandle
 import com.woocommerce.android.model.TaxClass
 import com.woocommerce.android.tools.SelectedSite
 import com.woocommerce.android.ui.products.ProductPricingViewModel.PricingData
 import com.woocommerce.android.ui.products.ProductPricingViewModel.ViewState
 import com.woocommerce.android.ui.products.ProductTaxStatus.Taxable
 import com.woocommerce.android.ui.products.models.SiteParameters
-import com.woocommerce.android.util.CoroutineTestRule
 import com.woocommerce.android.viewmodel.BaseUnitTest
 import com.woocommerce.android.viewmodel.MultiLiveEvent.Event
 import com.woocommerce.android.viewmodel.MultiLiveEvent.Event.ExitWithResult
-import com.woocommerce.android.viewmodel.SavedStateWithArgs
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runBlockingTest
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.Before
-import org.junit.Rule
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 import org.wordpress.android.fluxc.model.SiteModel
 import org.wordpress.android.fluxc.model.WCSettingsModel
+import org.wordpress.android.fluxc.model.WCSettingsModel.CurrencyPosition.LEFT
 import org.wordpress.android.fluxc.store.WooCommerceStore
 import java.math.BigDecimal
 import java.util.Calendar
 import java.util.Date
 
 @ExperimentalCoroutinesApi
+@RunWith(RobolectricTestRunner::class)
 class ProductPricingViewModelTest : BaseUnitTest() {
     private val wooCommerceStore: WooCommerceStore = mock()
     private val selectedSite: SelectedSite = mock()
     private val productRepository: ProductDetailRepository = mock()
 
-    private val siteParams = SiteParameters("$", "kg", "cm", 0f)
+    private val siteParams = SiteParameters(
+        currencyCode = "USD",
+        currencySymbol = "$",
+        currencyPosition = LEFT,
+        weightUnit = "kg",
+        dimensionUnit = "cm",
+        gmtOffset = 0f
+    )
     private val parameterRepository: ParameterRepository = mock {
-        on(it.getParameters(any(), any())).thenReturn(siteParams)
+        on(it.getParameters(any(), any<SavedStateHandle>())).thenReturn(siteParams)
     }
 
     private val pricingData = PricingData(
@@ -54,16 +63,8 @@ class ProductPricingViewModelTest : BaseUnitTest() {
         salePrice = BigDecimal.ONE
     )
 
-    private val savedState: SavedStateWithArgs = spy(
-        SavedStateWithArgs(
-            SavedStateHandle(),
-            null,
-            ProductPricingFragmentArgs(RequestCodes.PRODUCT_DETAIL_PRICING, pricingData)
-        )
-    )
-
-    @get:Rule
-    var coroutinesTestRule = CoroutineTestRule()
+    private val savedState = ProductPricingFragmentArgs(RequestCodes.PRODUCT_DETAIL_PRICING, pricingData)
+        .initSavedStateHandle()
 
     private lateinit var viewModel: ProductPricingViewModel
 
@@ -72,7 +73,8 @@ class ProductPricingViewModelTest : BaseUnitTest() {
         TaxClass("weird")
     )
     private val viewState = ViewState(
-        currency = "$",
+        currency = siteParams.currencySymbol,
+        currencyPosition = siteParams.currencyPosition,
         decimals = 2,
         taxClassList = taxClasses,
         salePriceErrorMessage = null,
@@ -85,22 +87,19 @@ class ProductPricingViewModelTest : BaseUnitTest() {
         val siteSettings = mock<WCSettingsModel> {
             on(it.currencyDecimalNumber).thenReturn(viewState.decimals)
         }
-
         doReturn(SiteModel()).whenever(selectedSite).get()
         doReturn(siteSettings).whenever(wooCommerceStore).getSiteSettings(any())
         doReturn(taxClasses).whenever(productRepository).getTaxClassesForSite()
 
-        viewModel = spy(ProductPricingViewModel(
-            savedState,
-            coroutinesTestRule.testDispatchers,
-            productRepository,
-            wooCommerceStore,
-            selectedSite,
-            parameterRepository
-        ))
+        viewModel = ProductPricingViewModel(
+                savedState,
+                productRepository,
+                wooCommerceStore,
+                selectedSite,
+                parameterRepository
+        )
 
         clearInvocations(
-            savedState,
             productRepository,
             wooCommerceStore,
             selectedSite
@@ -163,21 +162,15 @@ class ProductPricingViewModelTest : BaseUnitTest() {
 
     @Test
     fun `Hides the tax section for variation pricing`() = coroutinesTestRule.testDispatcher.runBlockingTest {
-        val savedState: SavedStateWithArgs = spy(
-            SavedStateWithArgs(
-                SavedStateHandle(),
-                null,
-                ProductPricingFragmentArgs(RequestCodes.VARIATION_DETAIL_PRICING, pricingData)
-            )
-        )
+        val savedState = ProductPricingFragmentArgs(RequestCodes.VARIATION_DETAIL_PRICING, pricingData)
+            .initSavedStateHandle()
 
         viewModel = spy(ProductPricingViewModel(
-            savedState,
-            coroutinesTestRule.testDispatchers,
-            productRepository,
-            wooCommerceStore,
-            selectedSite,
-            parameterRepository
+                savedState,
+                productRepository,
+                wooCommerceStore,
+                selectedSite,
+                parameterRepository
         ))
 
         var state: ViewState? = null

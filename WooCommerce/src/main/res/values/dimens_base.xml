@@ -29,6 +29,7 @@ so that's the baseline as defined in `major_100`.
     <dimen name="major_175">28dp</dimen>
     <dimen name="major_200">32dp</dimen>
     <dimen name="major_250">40dp</dimen>
+    <dimen name="major_275">42dp</dimen>
     <dimen name="major_300">48dp</dimen>
     <dimen name="major_325">56dp</dimen>
     <dimen name="major_350">60dp</dimen>
@@ -84,6 +85,7 @@ so that's the baseline as defined in `major_100`.
     <dimen name="skeleton_list_header_text_height_100">@dimen/major_100</dimen>
     <dimen name="skeleton_list_item_title_text_height_100">@dimen/major_110</dimen>
     <dimen name="skeleton_list_item_body_text_height_100">@dimen/major_100</dimen>
+    <dimen name="skeleton_list_spinner_text_field_height_100">@dimen/image_major_50</dimen>
     <dimen name="skeleton_bar_chart_bar_width_days">14dp</dimen>
     <dimen name="skeleton_bar_chart_bar_width_weeks">18dp</dimen>
     <dimen name="skeleton_bar_chart_bar_width_months">24dp</dimen>
@@ -113,5 +115,12 @@ so that's the baseline as defined in `major_100`.
     <dimen name="alert_dialog_max_width">300dp</dimen>
     <dimen name="top_performer_min_height">224dp</dimen>
     <dimen name="expanded_toolbar_height">108dp</dimen>
+    <dimen name="expanded_toolbar_bottom_margin">32dp</dimen>
+    <dimen name="expanded_toolbar_bottom_margin_with_subtitle">48dp</dimen>
     <dimen name="toolbar_height">56dp</dimen>
+    <dimen name="floating_dialog_min_width">280dp</dimen>
+    <dimen name="tab_indicator_size">6dp</dimen>
+    <dimen name="progress_bar_mid">56dp</dimen>
+    <dimen name="progress_bar_large">91dp</dimen>
+    <dimen name="card_reader_multiple_readers_found_rv_height">400dp</dimen>
 </resources>

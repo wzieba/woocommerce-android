@@ -1,6 +1,5 @@
 package com.woocommerce.android.ui.products
 
-import android.content.Context
 import android.os.Bundle
 import android.view.ActionMode
 import android.view.Menu
@@ -28,12 +27,12 @@ import com.woocommerce.android.ui.base.UIMessageResolver
 import com.woocommerce.android.util.StringUtils
 import com.woocommerce.android.viewmodel.MultiLiveEvent.Event.ExitWithResult
 import com.woocommerce.android.viewmodel.MultiLiveEvent.Event.ShowSnackbar
-import com.woocommerce.android.viewmodel.ViewModelFactory
 import com.woocommerce.android.widgets.SkeletonView
 import com.woocommerce.android.widgets.WCEmptyView.EmptyViewType
-import dagger.android.support.AndroidSupportInjection
+import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
+@AndroidEntryPoint
 class ProductSelectionListFragment : BaseFragment(R.layout.fragment_product_list),
     OnLoadMoreListener,
     OnActionModeEventListener,
@@ -41,8 +40,7 @@ class ProductSelectionListFragment : BaseFragment(R.layout.fragment_product_list
     OnActionExpandListener {
     @Inject lateinit var uiMessageResolver: UIMessageResolver
 
-    @Inject lateinit var viewModelFactory: ViewModelFactory
-    val viewModel: ProductSelectionListViewModel by viewModels { viewModelFactory }
+    val viewModel: ProductSelectionListViewModel by viewModels()
 
     private var tracker: SelectionTracker<Long>? = null
     private val productSelectionListAdapter: ProductListAdapter by lazy {
@@ -61,11 +59,6 @@ class ProductSelectionListFragment : BaseFragment(R.layout.fragment_product_list
 
     private var _binding: FragmentProductListBinding? = null
     private val binding get() = _binding!!
-
-    override fun onAttach(context: Context) {
-        AndroidSupportInjection.inject(this)
-        super.onAttach(context)
-    }
 
     override fun onDestroyView() {
         skeletonView.hide()

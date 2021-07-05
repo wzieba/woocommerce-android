@@ -1,7 +1,18 @@
-copy_gradle_properties: &copy_gradle_properties
-  run:
-    name: Setup gradle.properties
-    command: cp gradle.properties-example gradle.properties
+commands:
+  copy-gradle-properties:
+    steps:
+      - run:
+          name: Setup gradle.properties
+          command: cp gradle.properties-example gradle.properties
+  update-gradle-memory:
+      parameters:
+        jvmargs:
+          type: string
+          default: "Xmx1536m"
+      steps:
+        - run:
+            name: Update memory setting
+            command: sed -i "s/org.gradle.jvmargs=.*/org.gradle.jvmargs=-<< parameters.jvmargs >>/" gradle.properties
 
 orbs:
   # Using 1.0 of our Orbs means it will use the latest 1.0.x version from https://github.com/wordpress-mobile/circleci-orbs
@@ -9,6 +20,11 @@ orbs:
   git: wordpress-mobile/git@1.0
   bundle-install: toshimaru/bundle-install@0.3.1
   slack: circleci/slack@3.4.2
+
+parameters:
+  release_build:
+     type: boolean
+     default: false
 
 version: 2.1
 jobs:
@@ -20,10 +36,10 @@ jobs:
       - checkout
       - android/restore-gradle-cache:
           cache-prefix: lint-cache-v1
-      - <<: *copy_gradle_properties
+      - copy-gradle-properties
       - run:
-          name: Checkstyle & klint
-          command: ./gradlew --stacktrace checkstyle ciktlint
+          name: Checkstyle & Detekt
+          command: ./gradlew --stacktrace checkstyle detektAll
       - run:
           name: Lint
           command: ./gradlew --stacktrace lintVanillaRelease
@@ -49,10 +65,13 @@ jobs:
       - checkout
       - android/restore-gradle-cache:
           cache-prefix: tests-cache-v1
-      - <<: *copy_gradle_properties
+      - copy-gradle-properties
       - run:
-          name: Unit tests
+          name: Unit tests WooCommerce
           command: ./gradlew --stacktrace testVanillaRelease
+      - run:
+          name: Unit tests CardReaderModule
+          command: ./gradlew --stacktrace lib:cardreader:testDebug
       - android/save-gradle-cache:
           cache-prefix: tests-cache-v1
       - android/save-test-results
@@ -64,7 +83,7 @@ jobs:
       - checkout
       - android/restore-gradle-cache:
           cache-prefix: tests-cache-v1
-      - <<: *copy_gradle_properties
+      - copy-gradle-properties
       - run:
           # The instrumentation tests are not currently used and do tend to get
           # out of date when the UI changes, failing to build.
@@ -89,6 +108,7 @@ jobs:
       - run:
           name: Copy Secrets
           command: FASTLANE_SKIP_UPDATE_CHECK=1 bundle exec fastlane run configure_apply
+      - update-gradle-memory
       - android/restore-gradle-cache
       - run:
           name: Build APK
@@ -122,15 +142,7 @@ jobs:
       - run:
           name: Copy Secrets
           command: FASTLANE_SKIP_UPDATE_CHECK=1 bundle exec fastlane run configure_apply
-      - run:
-          name: Install other tools
-          command: |
-            /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install.sh)"
-            eval $(/home/linuxbrew/.linuxbrew/bin/brew shellenv)
-            brew install openjdk@11
-            brew install bundletool
-            echo "export PATH='/home/linuxbrew/.linuxbrew/Cellar/bundletool/1.2.0/bin:$PATH'" >> $BASH_ENV
-            rm WooCommerce/release.jks
+      - update-gradle-memory
       - android/restore-gradle-cache
       - run:
           name: Build APK
@@ -142,9 +154,9 @@ jobs:
             echo "export FASTLANE_SKIP_UPDATE_CHECK=1" >> $BASH_ENV
             mv ~/.android/debug_a8c.keystore ~/.android/debug.keystore
             if [[ $APP_VERSION == *"-rc-"* ]]; then
-              bundle exec fastlane build_and_upload_beta skip_confirm:true create_release:true
+              bundle exec fastlane build_and_upload_beta skip_confirm:true skip_prechecks:true create_release:true
             else
-              bundle exec fastlane build_and_upload_release skip_confirm:true create_release:true
+              bundle exec fastlane build_and_upload_release skip_confirm:true skip_prechecks:true create_release:true
             fi
       - android/save-gradle-cache
       - slack/status:
@@ -158,16 +170,13 @@ jobs:
 
 workflows:
   "WooCommerce Android":
+    unless: << pipeline.parameters.release_build >>
     jobs:
       - Lint
       - Test
       - Installable Build
       - Ensure Screenshots Tests Build
   Release Build:
+    when: << pipeline.parameters.release_build >>
     jobs:
-      - Release Build:
-          filters:
-            branches:
-              ignore: /.*/
-            tags:
-              only: /^\d+(\.\d+)*(-rc-\d)?$/
+      - Release Build

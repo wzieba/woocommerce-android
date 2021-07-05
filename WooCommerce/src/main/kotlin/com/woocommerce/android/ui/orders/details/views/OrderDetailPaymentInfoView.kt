@@ -16,6 +16,7 @@ import com.woocommerce.android.extensions.show
 import com.woocommerce.android.model.Order
 import com.woocommerce.android.model.Refund
 import com.woocommerce.android.ui.orders.details.adapter.OrderDetailRefundsAdapter
+import com.woocommerce.android.util.FeatureFlag
 import java.math.BigDecimal
 
 class OrderDetailPaymentInfoView @JvmOverloads constructor(
@@ -27,8 +28,11 @@ class OrderDetailPaymentInfoView @JvmOverloads constructor(
 
     fun updatePaymentInfo(
         order: Order,
+        isPaymentCollectableWithCardReader: Boolean,
         formatCurrencyForDisplay: (BigDecimal) -> String,
-        onIssueRefundClickListener: ((view: View) -> Unit)
+        onIssueRefundClickListener: (view: View) -> Unit,
+        onCollectCardPresentPaymentClickListener: (view: View) -> Unit,
+        onPrintingInstructionsClickListener: (view: View) -> Unit
     ) {
         binding.paymentInfoProductsTotal.text = formatCurrencyForDisplay(order.productsTotal)
         binding.paymentInfoShippingTotal.text = formatCurrencyForDisplay(order.shippingTotal)
@@ -99,6 +103,22 @@ class OrderDetailPaymentInfoView @JvmOverloads constructor(
         }
 
         binding.paymentInfoIssueRefundButton.setOnClickListener(onIssueRefundClickListener)
+        if (FeatureFlag.CARD_READER.isEnabled() && isPaymentCollectableWithCardReader) {
+            binding.paymentInfoCollectCardPresentPaymentButton.setOnClickListener(
+                onCollectCardPresentPaymentClickListener
+            )
+        } else {
+            binding.paymentInfoCollectCardPresentPaymentButton.visibility = View.GONE
+        }
+
+        // TODO Cardreader update logic.
+        if (FeatureFlag.CARD_READER.isEnabled() && isPaymentCollectableWithCardReader) {
+            binding.paymentInfoPrintingInstructions.setOnClickListener(
+                onPrintingInstructionsClickListener
+            )
+        } else {
+            binding.paymentInfoPrintingInstructions.visibility = View.GONE
+        }
     }
 
     fun showRefunds(
@@ -115,7 +135,7 @@ class OrderDetailPaymentInfoView @JvmOverloads constructor(
         binding.paymentInfoRefundTotalSection.hide()
 
         var availableRefundQuantity = order.availableRefundQuantity
-        refunds.flatMap { it.items }.groupBy { it.uniqueId }.forEach { productRefunds ->
+        refunds.flatMap { it.items }.groupBy { it.orderItemId }.forEach { productRefunds ->
             val refundedCount = productRefunds.value.sumBy { it.quantity }
             availableRefundQuantity -= refundedCount
         }

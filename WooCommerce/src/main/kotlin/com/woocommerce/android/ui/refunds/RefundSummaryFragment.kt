@@ -4,9 +4,9 @@ import android.os.Bundle
 import android.view.View
 import android.widget.Toast
 import androidx.core.widget.doOnTextChanged
+import androidx.hilt.navigation.fragment.hiltNavGraphViewModels
 import androidx.lifecycle.Observer
 import androidx.navigation.fragment.findNavController
-import androidx.navigation.navGraphViewModels
 import com.woocommerce.android.R
 import com.woocommerce.android.analytics.AnalyticsTracker
 import com.woocommerce.android.databinding.FragmentRefundSummaryBinding
@@ -21,20 +21,17 @@ import com.woocommerce.android.ui.main.MainActivity.Companion.BackPressListener
 import com.woocommerce.android.ui.refunds.IssueRefundViewModel.IssueRefundEvent.ShowRefundConfirmation
 import com.woocommerce.android.viewmodel.MultiLiveEvent.Event.Exit
 import com.woocommerce.android.viewmodel.MultiLiveEvent.Event.ShowSnackbar
-import com.woocommerce.android.viewmodel.ViewModelFactory
-import dagger.Lazy
+import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
+@AndroidEntryPoint
 class RefundSummaryFragment : BaseFragment(R.layout.fragment_refund_summary), BackPressListener {
     companion object {
         const val REFUND_ORDER_NOTICE_KEY = "refund_order_notice"
     }
-    @Inject lateinit var viewModelFactory: Lazy<ViewModelFactory>
     @Inject lateinit var uiMessageResolver: UIMessageResolver
 
-    private val viewModel: IssueRefundViewModel by navGraphViewModels(R.id.nav_graph_refunds) {
-        viewModelFactory.get()
-    }
+    private val viewModel: IssueRefundViewModel by hiltNavGraphViewModels(R.id.nav_graph_refunds)
 
     private var _binding: FragmentRefundSummaryBinding? = null
     private val binding get() = _binding!!
@@ -91,10 +88,11 @@ class RefundSummaryFragment : BaseFragment(R.layout.fragment_refund_summary), Ba
                 binding.refundSummaryMethod.text = it
             }
             new.isMethodDescriptionVisible?.takeIfNotEqualTo(old?.isMethodDescriptionVisible) { visible ->
-                if (visible)
+                if (visible) {
                     binding.refundSummaryMethodDescription.show()
-                else
+                } else {
                     binding.refundSummaryMethodDescription.hide()
+                }
             }
         }
     }

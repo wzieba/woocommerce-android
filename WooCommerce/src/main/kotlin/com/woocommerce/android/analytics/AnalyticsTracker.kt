@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.content.Context
 import androidx.preference.PreferenceManager
 import com.automattic.android.tracks.TracksClient
+import com.woocommerce.android.BuildConfig
 import com.woocommerce.android.analytics.AnalyticsTracker.Stat.BACK_PRESSED
 import com.woocommerce.android.analytics.AnalyticsTracker.Stat.VIEW_SHOWN
 import com.woocommerce.android.util.WooLog
@@ -209,12 +210,54 @@ class AnalyticsTracker private constructor(private val context: Context) {
         ORDER_TRACKING_DELETE_SUCCESS,
         ORDER_TRACKING_DELETE_FAILED,
         ORDER_TRACKING_PROVIDERS_LOADED,
+        SHIPMENT_TRACKING_MENU_ACTION,
 
         // -- Shipping Labels
         SHIPPING_LABEL_API_REQUEST,
-        SHIPMENT_TRACKING_MENU_ACTION,
         SHIPPING_LABEL_PRINT_REQUESTED,
         SHIPPING_LABEL_REFUND_REQUESTED,
+        SHIPPING_LABEL_PURCHASE_FLOW,
+        SHIPPING_LABEL_DISCOUNT_INFO_BUTTON_TAPPED,
+        SHIPPING_LABEL_EDIT_ADDRESS_DONE_BUTTON_TAPPED,
+        SHIPPING_LABEL_EDIT_ADDRESS_USE_ADDRESS_AS_IS_BUTTON_TAPPED,
+        SHIPPING_LABEL_EDIT_ADDRESS_OPEN_MAP_BUTTON_TAPPED,
+        SHIPPING_LABEL_EDIT_ADDRESS_CONTACT_CUSTOMER_BUTTON_TAPPED,
+        SHIPPING_LABEL_ADDRESS_SUGGESTIONS_USE_SELECTED_ADDRESS_BUTTON_TAPPED,
+        SHIPPING_LABEL_ADDRESS_SUGGESTIONS_EDIT_SELECTED_ADDRESS_BUTTON_TAPPED,
+        SHIPPING_LABEL_ADDRESS_VALIDATION_FAILED,
+        SHIPPING_LABEL_ADDRESS_VALIDATION_SUCCEEDED,
+        SHIPPING_LABEL_ORDER_FULFILL_SUCCEEDED,
+        SHIPPING_LABEL_ORDER_FULFILL_FAILED,
+
+        // -- Card Present Payments - collection
+        CARD_PRESENT_COLLECT_PAYMENT_TAPPED,
+        CARD_PRESENT_COLLECT_PAYMENT_FAILED,
+        CARD_PRESENT_COLLECT_PAYMENT_SUCCESS,
+
+        // -- Card Reader - discovery
+        CARD_READER_DISCOVERY_TAPPED,
+        CARD_READER_DISCOVERY_FAILED,
+        CARD_READER_DISCOVERY_READER_DISCOVERED,
+
+        // -- Card Reader - connection
+        CARD_READER_CONNECTION_TAPPED,
+        CARD_READER_CONNECTION_FAILED,
+        CARD_READER_CONNECTION_SUCCESS,
+        CARD_READER_DISCONNECT_TAPPED,
+
+        // -- Card Reader - software udpate
+        CARD_READER_SOFTWARE_UPDATE_TAPPED,
+        CARD_READER_SOFTWARE_UPDATE_SUCCESS,
+        CARD_READER_SOFTWARE_UPDATE_SKIP_TAPPED,
+        CARD_READER_SOFTWARE_UPDATE_FAILED,
+
+        // -- Receipts
+        RECEIPT_PRINT_TAPPED,
+        RECEIPT_EMAIL_TAPPED,
+        RECEIPT_EMAIL_FAILED,
+        RECEIPT_PRINT_FAILED,
+        RECEIPT_PRINT_CANCELED,
+        RECEIPT_PRINT_SUCCESS,
 
         // -- Top-level navigation
         MAIN_MENU_SETTINGS_TAPPED,
@@ -334,6 +377,16 @@ class AnalyticsTracker private constructor(private val context: Context) {
         PRODUCT_DETAIL_VIEW_EXTERNAL_PRODUCT_LINK_TAPPED,
         EXTERNAL_PRODUCT_LINK_SETTINGS_DONE_BUTTON_TAPPED,
 
+        // -- Product attributes
+        PRODUCT_ATTRIBUTE_EDIT_BUTTON_TAPPED,
+        PRODUCT_ATTRIBUTE_ADD_BUTTON_TAPPED,
+        PRODUCT_ATTRIBUTE_UPDATED,
+        PRODUCT_ATTRIBUTE_UPDATE_SUCCESS,
+        PRODUCT_ATTRIBUTE_UPDATE_FAILED,
+        PRODUCT_ATTRIBUTE_RENAME_BUTTON_TAPPED,
+        PRODUCT_ATTRIBUTE_REMOVE_BUTTON_TAPPED,
+        PRODUCT_ATTRIBUTE_OPTIONS_ROW_TAPPED,
+
         // -- Product variation
         PRODUCT_VARIATION_VIEW_VARIATION_DESCRIPTION_TAPPED,
         PRODUCT_VARIATION_VIEW_PRICE_SETTINGS_TAPPED,
@@ -346,6 +399,13 @@ class AnalyticsTracker private constructor(private val context: Context) {
         PRODUCT_VARIATION_UPDATE_SUCCESS,
         PRODUCT_VARIATION_UPDATE_ERROR,
         PRODUCT_VARIATION_LOADED,
+        PRODUCT_VARIATION_ADD_FIRST_TAPPED,
+        PRODUCT_VARIATION_ADD_MORE_TAPPED,
+        PRODUCT_VARIATION_CREATION_SUCCESS,
+        PRODUCT_VARIATION_CREATION_FAILED,
+        PRODUCT_VARIATION_REMOVE_BUTTON_TAPPED,
+        PRODUCT_VARIATION_EDIT_ATTRIBUTE_DONE_BUTTON_TAPPED,
+        PRODUCT_VARIATION_EDIT_ATTRIBUTE_OPTIONS_DONE_BUTTON_TAPPED,
 
         // -- Product settings
         PRODUCT_SETTINGS_DONE_BUTTON_TAPPED,
@@ -441,6 +501,10 @@ class AnalyticsTracker private constructor(private val context: Context) {
         APP_PERMISSION_GRANTED,
         APP_PERMISSION_DENIED,
 
+        // -- Encrypted logging
+        ENCRYPTED_LOGGING_UPLOAD_SUCCESSFUL,
+        ENCRYPTED_LOGGING_UPLOAD_FAILED,
+
         // -- Other
         UNFULFILLED_ORDERS_LOADED,
         TOP_EARNER_PRODUCT_TAPPED
@@ -513,6 +577,7 @@ class AnalyticsTracker private constructor(private val context: Context) {
                 finalProperties[KEY_IS_WPCOM_STORE] = it.isWpComStore
             }
         }
+        finalProperties[IS_DEBUG] = BuildConfig.DEBUG
 
         val propertiesJson = JSONObject(finalProperties)
         tracksClient?.track(EVENTS_PREFIX + eventName, propertiesJson, user, userType)
@@ -566,6 +631,7 @@ class AnalyticsTracker private constructor(private val context: Context) {
         private const val TRACKS_ANON_ID = "nosara_tracks_anon_id"
         private const val EVENTS_PREFIX = "woocommerceandroid_"
 
+        const val IS_DEBUG = "is_debug"
         const val KEY_ALREADY_READ = "already_read"
         const val KEY_BLOG_ID = "blog_id"
         const val KEY_CONTEXT = "context"
@@ -576,6 +642,7 @@ class AnalyticsTracker private constructor(private val context: Context) {
         const val KEY_HAS_UNFULFILLED_ORDERS = "has_unfulfilled_orders"
         const val KEY_ID = "id"
         const val KEY_ORDER_ID = "order_id"
+        const val KEY_PRODUCT_ID = "product_id"
         const val KEY_IS_LOADING_MORE = "is_loading_more"
         const val KEY_IS_WPCOM_STORE = "is_wpcom_store"
         const val KEY_NAME = "name"
@@ -600,6 +667,8 @@ class AnalyticsTracker private constructor(private val context: Context) {
         const val KEY_NOTE_ID = "note_id"
         const val KEY_IMAGE_SOURCE = "source"
         const val KEY_FILTERS = "filters"
+        const val KEY_FULFILL_ORDER = "fulfill_order"
+        const val KEY_STEP = "step"
 
         const val KEY_SORT_ORDER = "order"
         const val VALUE_SORT_NAME_ASC = "name,ascending"
@@ -614,6 +683,23 @@ class AnalyticsTracker private constructor(private val context: Context) {
         const val VALUE_ORDER = "order"
         const val VALUE_REVIEW = "review"
         const val VALUE_ORDER_DETAIL = "order_detail"
+        const val VALUE_STARTED = "started"
+        const val VALUE_PURCHASE_INITIATED = "purchase_initiated"
+        const val VALUE_ORIGIN_ADDRESS_STARTED = "origin_address_started"
+        const val VALUE_DESTINATION_ADDRESS_STARTED = "destination_address_started"
+        const val VALUE_PACKAGES_STARTED = "packages_started"
+        const val VALUE_CARRIER_RATES_STARTED = "carrier_rates_started"
+        const val VALUE_CUSTOMS_STARTED = "customs_started"
+        const val VALUE_PAYMENT_METHOD_STARTED = "payment_method_started"
+        const val VALUE_ORIGIN_ADDRESS_COMPLETE = "origin_address_complete"
+        const val VALUE_DESTINATION_ADDRESS_COMPLETE = "destination_address_complete"
+        const val VALUE_PACKAGES_SELECTED = "packages_selected"
+        const val VALUE_CARRIER_RATES_SELECTED = "carrier_rates_selected"
+        const val VALUE_CUSTOMS_COMPLETE = "customs_complete"
+        const val VALUE_PAYMENT_METHOD_SELECTED = "payment_method_selected"
+        const val VALUE_PURCHASE_FAILED = "purchase_failed"
+        const val VALUE_PURCHASE_SUCCEEDED = "purchase_succeeded"
+        const val VALUE_PURCHASE_READY = "purchase_ready"
 
         const val KEY_FEEDBACK_ACTION = "action"
         const val KEY_FEEDBACK_CONTEXT = "context"
@@ -675,7 +761,7 @@ class AnalyticsTracker private constructor(private val context: Context) {
         const val KEY_REFUND_IS_FULL = "is_full"
         const val KEY_REFUND_TYPE = "method"
         const val KEY_REFUND_METHOD = "gateway"
-        const val KEY_REFUND_AMOUNT = "amount"
+        const val KEY_AMOUNT = "amount"
 
         private const val PREFKEY_SEND_USAGE_STATS = "wc_pref_send_usage_stats"
 

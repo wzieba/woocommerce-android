@@ -3,63 +3,61 @@ package com.woocommerce.android.ui.orders.shippinglabels.creation
 import androidx.lifecycle.SavedStateHandle
 import com.nhaarman.mockitokotlin2.any
 import com.nhaarman.mockitokotlin2.mock
-import com.nhaarman.mockitokotlin2.spy
 import com.nhaarman.mockitokotlin2.whenever
+import com.woocommerce.android.initSavedStateHandle
 import com.woocommerce.android.model.PackageDimensions
 import com.woocommerce.android.model.ShippingPackage
 import com.woocommerce.android.ui.orders.shippinglabels.ShippingLabelRepository
 import com.woocommerce.android.ui.orders.shippinglabels.creation.ShippingPackageSelectorViewModel.ViewState
 import com.woocommerce.android.ui.products.ParameterRepository
 import com.woocommerce.android.ui.products.models.SiteParameters
-import com.woocommerce.android.util.CoroutineTestRule
 import com.woocommerce.android.viewmodel.BaseUnitTest
 import com.woocommerce.android.viewmodel.MultiLiveEvent
 import com.woocommerce.android.viewmodel.MultiLiveEvent.Event.ExitWithResult
-import com.woocommerce.android.viewmodel.SavedStateWithArgs
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runBlockingTest
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.Before
-import org.junit.Rule
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 import org.wordpress.android.fluxc.network.rest.wpcom.wc.WooResult
 
 @ExperimentalCoroutinesApi
+@RunWith(RobolectricTestRunner::class)
 class ShippingPackageSelectorViewModelTest : BaseUnitTest() {
     private val availablePackages = listOf(
         ShippingPackage(
-            "id1", "title1", false, "provider1", PackageDimensions(1.0, 1.0, 1.0)
+            "id1", "title1", false, "provider1", PackageDimensions(1.0f, 1.0f, 1.0f), 1f
         ),
         ShippingPackage(
-            "id2", "title2", false, "provider2", PackageDimensions(1.0, 1.0, 1.0)
+            "id2", "title2", false, "provider2", PackageDimensions(1.0f, 1.0f, 1.0f), 1f
         )
     )
     private val parameterRepository: ParameterRepository = mock()
     private val shippingRepository: ShippingLabelRepository = mock()
 
-    @get:Rule
-    var coroutinesTestRule = CoroutineTestRule()
-    private val savedState: SavedStateWithArgs = spy(
-        SavedStateWithArgs(
-            SavedStateHandle(),
-            null,
-            ShippingPackageSelectorFragmentArgs(0)
-        )
-    )
+    private val savedState = ShippingPackageSelectorFragmentArgs(0).initSavedStateHandle()
 
     private lateinit var viewModel: ShippingPackageSelectorViewModel
 
     @Before
     fun setup() {
-        whenever(parameterRepository.getParameters(any(), any())).thenReturn(
-            SiteParameters("", "", "cm", 0f)
+        whenever(parameterRepository.getParameters(any(), any<SavedStateHandle>())).thenReturn(
+            SiteParameters(
+                currencyCode = "USD",
+                currencySymbol = "$",
+                currencyPosition = null,
+                weightUnit = "kg",
+                dimensionUnit = "cm",
+                gmtOffset = 0f
+            )
         )
         coroutinesTestRule.testDispatcher.runBlockingTest {
             whenever(shippingRepository.getShippingPackages()).thenReturn(WooResult(availablePackages))
         }
         viewModel = ShippingPackageSelectorViewModel(
             savedState,
-            coroutinesTestRule.testDispatchers,
             parameterRepository,
             shippingRepository
         )

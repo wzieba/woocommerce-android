@@ -5,7 +5,6 @@ import android.view.View
 import androidx.annotation.StringRes
 import androidx.core.view.isVisible
 import androidx.fragment.app.viewModels
-import androidx.lifecycle.Observer
 import androidx.navigation.fragment.findNavController
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.woocommerce.android.R
@@ -17,14 +16,17 @@ import com.woocommerce.android.extensions.isNotEqualTo
 import com.woocommerce.android.extensions.navigateSafely
 import com.woocommerce.android.extensions.takeIfNotEqualTo
 import com.woocommerce.android.model.Address
+import com.woocommerce.android.model.CustomsPackage
 import com.woocommerce.android.model.PaymentMethod
 import com.woocommerce.android.model.ShippingLabelPackage
 import com.woocommerce.android.model.ShippingRate
 import com.woocommerce.android.ui.base.BaseFragment
 import com.woocommerce.android.ui.base.UIMessageResolver
 import com.woocommerce.android.ui.orders.shippinglabels.creation.CreateShippingLabelEvent.ShowAddressEditor
+import com.woocommerce.android.ui.orders.shippinglabels.creation.CreateShippingLabelEvent.ShowCustomsForm
 import com.woocommerce.android.ui.orders.shippinglabels.creation.CreateShippingLabelEvent.ShowPackageDetails
 import com.woocommerce.android.ui.orders.shippinglabels.creation.CreateShippingLabelEvent.ShowPaymentDetails
+import com.woocommerce.android.ui.orders.shippinglabels.creation.CreateShippingLabelEvent.ShowPrintShippingLabels
 import com.woocommerce.android.ui.orders.shippinglabels.creation.CreateShippingLabelEvent.ShowShippingRates
 import com.woocommerce.android.ui.orders.shippinglabels.creation.CreateShippingLabelEvent.ShowSuggestedAddress
 import com.woocommerce.android.ui.orders.shippinglabels.creation.CreateShippingLabelEvent.ShowWooDiscountBottomSheet
@@ -47,27 +49,29 @@ import com.woocommerce.android.ui.orders.shippinglabels.creation.EditShippingLab
 import com.woocommerce.android.ui.orders.shippinglabels.creation.EditShippingLabelPaymentFragment.Companion.EDIT_PAYMENTS_RESULT
 import com.woocommerce.android.ui.orders.shippinglabels.creation.ShippingCarrierRatesFragment.Companion.SHIPPING_CARRIERS_CLOSED
 import com.woocommerce.android.ui.orders.shippinglabels.creation.ShippingCarrierRatesFragment.Companion.SHIPPING_CARRIERS_RESULT
+import com.woocommerce.android.ui.orders.shippinglabels.creation.ShippingCustomsFragment.Companion.EDIT_CUSTOMS_CLOSED
+import com.woocommerce.android.ui.orders.shippinglabels.creation.ShippingCustomsFragment.Companion.EDIT_CUSTOMS_RESULT
 import com.woocommerce.android.ui.orders.shippinglabels.creation.ShippingLabelAddressSuggestionFragment.Companion.SELECTED_ADDRESS_ACCEPTED
 import com.woocommerce.android.ui.orders.shippinglabels.creation.ShippingLabelAddressSuggestionFragment.Companion.SELECTED_ADDRESS_TO_BE_EDITED
 import com.woocommerce.android.ui.orders.shippinglabels.creation.ShippingLabelAddressSuggestionFragment.Companion.SUGGESTED_ADDRESS_DISCARDED
 import com.woocommerce.android.util.CurrencyFormatter
 import com.woocommerce.android.util.PriceUtils
 import com.woocommerce.android.viewmodel.MultiLiveEvent.Event.ShowSnackbar
-import com.woocommerce.android.viewmodel.ViewModelFactory
 import com.woocommerce.android.widgets.CustomProgressDialog
 import com.woocommerce.android.widgets.SkeletonView
 import com.woocommerce.android.widgets.WCEmptyView
+import dagger.hilt.android.AndroidEntryPoint
 import java.math.BigDecimal
 import javax.inject.Inject
 
+@AndroidEntryPoint
 class CreateShippingLabelFragment : BaseFragment(R.layout.fragment_create_shipping_label) {
     private var progressDialog: CustomProgressDialog? = null
 
     @Inject lateinit var uiMessageResolver: UIMessageResolver
-    @Inject lateinit var viewModelFactory: ViewModelFactory
     @Inject lateinit var currencyFormatter: CurrencyFormatter
 
-    val viewModel: CreateShippingLabelViewModel by viewModels { viewModelFactory }
+    val viewModel: CreateShippingLabelViewModel by viewModels()
 
     private val skeletonView: SkeletonView = SkeletonView()
 
@@ -126,6 +130,12 @@ class CreateShippingLabelFragment : BaseFragment(R.layout.fragment_create_shippi
         handleResult<List<ShippingRate>>(SHIPPING_CARRIERS_RESULT) {
             viewModel.onShippingCarriersSelected(it)
         }
+        handleResult<List<CustomsPackage>>(EDIT_CUSTOMS_RESULT) {
+            viewModel.onCustomsFilledOut(it)
+        }
+        handleNotice(EDIT_CUSTOMS_CLOSED) {
+            viewModel.onCustomsEditCanceled()
+        }
     }
 
     private fun subscribeObservers(binding: FragmentCreateShippingLabelBinding) {
@@ -182,15 +192,16 @@ class CreateShippingLabelFragment : BaseFragment(R.layout.fragment_create_shippi
             }
         }
 
-        viewModel.event.observe(viewLifecycleOwner, Observer { event ->
+        viewModel.event.observe(viewLifecycleOwner) { event ->
             when (event) {
                 is ShowSnackbar -> uiMessageResolver.showSnack(event.message)
                 is ShowAddressEditor -> {
                     val action = CreateShippingLabelFragmentDirections
                         .actionCreateShippingLabelFragmentToEditShippingLabelAddressFragment(
-                            event.address,
-                            event.type,
-                            event.validationResult
+                            address = event.address,
+                            addressType = event.type,
+                            validationResult = event.validationResult,
+                            requiresPhoneNumber = event.requiresPhoneNumber
                         )
                     findNavController().navigateSafely(action)
                 }
@@ -223,6 +234,7 @@ class CreateShippingLabelFragment : BaseFragment(R.layout.fragment_create_shippi
                             event.destinationAddress,
                             event.shippingLabelPackages.toTypedArray(),
                             event.order,
+                            event.customsPackages?.toTypedArray(),
                             event.selectedRates.toTypedArray()
                         )
                     findNavController().navigateSafely(action)
@@ -233,9 +245,29 @@ class CreateShippingLabelFragment : BaseFragment(R.layout.fragment_create_shippi
                         show()
                     }
                 }
+                is ShowPrintShippingLabels -> {
+                    // TODO update the argument to accept multiple labels in M4
+                    val action = CreateShippingLabelFragmentDirections
+                        .actionCreateShippingLabelFragmentToPrintShippingLabelFragment(
+                            orderId = event.orderId,
+                            shippingLabelId = event.labels.first().id,
+                            isReprint = false
+                        )
+                    findNavController().navigateSafely(action)
+                }
+                is ShowCustomsForm -> {
+                    val action = CreateShippingLabelFragmentDirections
+                        .actionCreateShippingLabelFragmentToShippingCustomsFragment(
+                            originCountryCode = event.originCountryCode,
+                            destinationCountryCode = event.destinationCountryCode,
+                            shippingPackages = event.shippingPackages.toTypedArray(),
+                            customsPackages = event.customsPackages.toTypedArray()
+                        )
+                    findNavController().navigateSafely(action)
+                }
                 else -> event.isHandled = false
             }
-        })
+        }
     }
 
     private fun showProgressDialog(@StringRes title: Int, @StringRes message: Int) {
@@ -297,6 +329,9 @@ class CreateShippingLabelFragment : BaseFragment(R.layout.fragment_create_shippi
 
         binding.orderSummaryLayout.discountInfo.setOnClickListener {
             viewModel.onWooDiscountInfoClicked()
+        }
+        binding.orderSummaryLayout.purchaseLabelButton.setOnClickListener {
+            viewModel.onPurchaseButtonClicked(binding.orderSummaryLayout.markOrderCompleteCheckbox.isChecked)
         }
     }
 

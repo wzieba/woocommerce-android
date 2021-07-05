@@ -2,37 +2,36 @@ package com.woocommerce.android.ui.orders.notes
 
 import android.content.DialogInterface
 import android.os.Parcelable
-import com.squareup.inject.assisted.Assisted
-import com.squareup.inject.assisted.AssistedInject
+import androidx.lifecycle.SavedStateHandle
 import com.woocommerce.android.R
 import com.woocommerce.android.analytics.AnalyticsTracker
 import com.woocommerce.android.analytics.AnalyticsTracker.Stat.ADD_ORDER_NOTE_EMAIL_NOTE_TO_CUSTOMER_TOGGLED
 import com.woocommerce.android.analytics.AnalyticsTracker.Stat.ORDER_NOTE_ADD
-import com.woocommerce.android.di.ViewModelAssistedFactory
 import com.woocommerce.android.model.OrderNote
 import com.woocommerce.android.tools.NetworkStatus
 import com.woocommerce.android.ui.orders.details.OrderDetailRepository
 import com.woocommerce.android.util.AnalyticsUtils
-import com.woocommerce.android.util.CoroutineDispatchers
 import com.woocommerce.android.viewmodel.LiveDataDelegate
 import com.woocommerce.android.viewmodel.MultiLiveEvent.Event.Exit
 import com.woocommerce.android.viewmodel.MultiLiveEvent.Event.ExitWithResult
 import com.woocommerce.android.viewmodel.MultiLiveEvent.Event.ShowDialog
 import com.woocommerce.android.viewmodel.MultiLiveEvent.Event.ShowSnackbar
 import com.woocommerce.android.viewmodel.ResourceProvider
-import com.woocommerce.android.viewmodel.SavedStateWithArgs
 import com.woocommerce.android.viewmodel.ScopedViewModel
-import kotlinx.android.parcel.Parcelize
+import com.woocommerce.android.viewmodel.navArgs
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
+import kotlinx.parcelize.Parcelize
 import org.wordpress.android.fluxc.model.order.OrderIdentifier
+import javax.inject.Inject
 
-class AddOrderNoteViewModel @AssistedInject constructor(
-    @Assisted savedState: SavedStateWithArgs,
-    dispatchers: CoroutineDispatchers,
+@HiltViewModel
+class AddOrderNoteViewModel @Inject constructor(
+    savedState: SavedStateHandle,
     private val resourceProvider: ResourceProvider,
     private val networkStatus: NetworkStatus,
     private val orderDetailRepository: OrderDetailRepository
-) : ScopedViewModel(savedState, dispatchers) {
+) : ScopedViewModel(savedState) {
     val addOrderNoteViewStateData = LiveDataDelegate(savedState, ViewState())
     private var addOrderNoteViewState by addOrderNoteViewStateData
 
@@ -132,7 +131,4 @@ class AddOrderNoteViewModel @AssistedInject constructor(
         val canAddNote: Boolean
             get() = draftNote.note.isNotBlank()
     }
-
-    @AssistedInject.Factory
-    interface Factory : ViewModelAssistedFactory<AddOrderNoteViewModel>
 }

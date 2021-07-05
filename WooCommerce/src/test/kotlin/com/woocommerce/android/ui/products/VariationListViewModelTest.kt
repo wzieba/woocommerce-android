@@ -1,7 +1,6 @@
 package com.woocommerce.android.ui.products
 
-import androidx.lifecycle.MutableLiveData
-import com.nhaarman.mockitokotlin2.any
+import androidx.lifecycle.SavedStateHandle
 import com.nhaarman.mockitokotlin2.doReturn
 import com.nhaarman.mockitokotlin2.mock
 import com.nhaarman.mockitokotlin2.spy
@@ -12,55 +11,53 @@ import com.woocommerce.android.R.string
 import com.woocommerce.android.extensions.takeIfNotEqualTo
 import com.woocommerce.android.model.ProductVariation
 import com.woocommerce.android.tools.NetworkStatus
-import com.woocommerce.android.ui.products.variations.VariationListRepository
+import com.woocommerce.android.ui.products.variations.VariationRepository
 import com.woocommerce.android.ui.products.variations.VariationListViewModel
-import com.woocommerce.android.ui.products.variations.VariationListViewModel.ViewState
-import com.woocommerce.android.util.CoroutineDispatchers
 import com.woocommerce.android.util.CurrencyFormatter
 import com.woocommerce.android.viewmodel.BaseUnitTest
 import com.woocommerce.android.viewmodel.MultiLiveEvent.Event.ShowSnackbar
-import com.woocommerce.android.viewmodel.SavedStateWithArgs
-import com.woocommerce.android.viewmodel.test
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.runBlockingTest
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.Before
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 
+@ExperimentalCoroutinesApi
+@RunWith(RobolectricTestRunner::class)
 class VariationListViewModelTest : BaseUnitTest() {
     private val networkStatus: NetworkStatus = mock()
-    private val variationListRepository: VariationListRepository = mock()
+    private val variationRepository: VariationRepository = mock()
     private val currencyFormatter: CurrencyFormatter = mock()
     private val productRepository: ProductDetailRepository = mock()
 
     private val productRemoteId = 1L
     private lateinit var viewModel: VariationListViewModel
     private val variations = ProductTestUtils.generateProductVariationList(productRemoteId)
-    private val savedState: SavedStateWithArgs = mock()
-    private val coroutineDispatchers = CoroutineDispatchers(
-            Dispatchers.Unconfined, Dispatchers.Unconfined, Dispatchers.Unconfined)
+    private val savedState = SavedStateHandle()
 
     @Before
     fun setup() {
-        doReturn(MutableLiveData(ViewState())).whenever(savedState).getLiveData<ViewState>(any(), any())
         doReturn(true).whenever(networkStatus).isConnected()
+        whenever(productRepository.getProduct(productRemoteId)).thenReturn(mock())
     }
 
     private fun createViewModel() {
         viewModel = spy(
             VariationListViewModel(
-                savedState,
-                coroutineDispatchers,
-                variationListRepository,
-                productRepository,
-                networkStatus,
-                currencyFormatter
+                    savedState,
+                    variationRepository,
+                    productRepository,
+                    networkStatus,
+                    currencyFormatter
             )
         )
     }
 
     @Test
     fun `Displays the product variation list view correctly`() {
-        doReturn(variations).whenever(variationListRepository).getProductVariationList(productRemoteId)
+        doReturn(variations).whenever(variationRepository).getProductVariationList(productRemoteId)
 
         createViewModel()
 
@@ -72,28 +69,29 @@ class VariationListViewModelTest : BaseUnitTest() {
     }
 
     @Test
-    fun `Do not fetch product variations from api when not connected`() = test {
-        doReturn(false).whenever(networkStatus).isConnected()
+    fun `Do not fetch product variations from api when not connected`() =
+        coroutinesTestRule.testDispatcher.runBlockingTest {
+            doReturn(false).whenever(networkStatus).isConnected()
 
-        createViewModel()
+            createViewModel()
 
-        var snackbar: ShowSnackbar? = null
-        viewModel.event.observeForever {
-            if (it is ShowSnackbar) snackbar = it
+            var snackbar: ShowSnackbar? = null
+            viewModel.event.observeForever {
+                if (it is ShowSnackbar) snackbar = it
+            }
+
+            viewModel.start(productRemoteId)
+
+            verify(variationRepository, times(1)).getProductVariationList(productRemoteId)
+            verify(variationRepository, times(0)).fetchProductVariations(productRemoteId)
+
+            assertThat(snackbar).isEqualTo(ShowSnackbar(string.offline_error))
         }
 
-        viewModel.start(productRemoteId)
-
-        verify(variationListRepository, times(1)).getProductVariationList(productRemoteId)
-        verify(variationListRepository, times(0)).fetchProductVariations(productRemoteId)
-
-        assertThat(snackbar).isEqualTo(ShowSnackbar(string.offline_error))
-    }
-
     @Test
-    fun `Shows and hides product variations skeleton correctly`() = test {
+    fun `Shows and hides product variations skeleton correctly`() = coroutinesTestRule.testDispatcher.runBlockingTest {
         doReturn(emptyList<ProductVariation>())
-            .whenever(variationListRepository).getProductVariationList(productRemoteId)
+            .whenever(variationRepository).getProductVariationList(productRemoteId)
 
         createViewModel()
 
@@ -107,9 +105,9 @@ class VariationListViewModelTest : BaseUnitTest() {
     }
 
     @Test
-    fun `Display empty view on fetch product variations error`() = test {
-        whenever(variationListRepository.fetchProductVariations(productRemoteId)).thenReturn(null)
-        whenever(variationListRepository.getProductVariationList(productRemoteId)).thenReturn(null)
+    fun `Display empty view on fetch product variations error`() = coroutinesTestRule.testDispatcher.runBlockingTest {
+        whenever(variationRepository.fetchProductVariations(productRemoteId)).thenReturn(null)
+        whenever(variationRepository.getProductVariationList(productRemoteId)).thenReturn(null)
 
         createViewModel()
 
@@ -120,7 +118,7 @@ class VariationListViewModelTest : BaseUnitTest() {
 
         viewModel.start(productRemoteId)
 
-        verify(variationListRepository, times(1)).fetchProductVariations(productRemoteId)
+        verify(variationRepository, times(1)).fetchProductVariations(productRemoteId)
         assertThat(showEmptyView).containsExactly(true, false)
     }
 }

@@ -16,15 +16,15 @@ import com.woocommerce.android.tools.ProductImageMap
 import com.woocommerce.android.ui.base.BaseFragment
 import com.woocommerce.android.ui.main.MainNavigationRouter
 import com.woocommerce.android.util.CurrencyFormatter
-import com.woocommerce.android.viewmodel.ViewModelFactory
+import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
+@AndroidEntryPoint
 class RefundDetailFragment : BaseFragment(R.layout.fragment_refund_detail) {
-    @Inject lateinit var viewModelFactory: ViewModelFactory
     @Inject lateinit var currencyFormatter: CurrencyFormatter
     @Inject lateinit var imageMap: ProductImageMap
 
-    private val viewModel: RefundDetailViewModel by viewModels { viewModelFactory }
+    private val viewModel: RefundDetailViewModel by viewModels()
 
     private var _binding: FragmentRefundDetailBinding? = null
     private val binding get() = _binding!!

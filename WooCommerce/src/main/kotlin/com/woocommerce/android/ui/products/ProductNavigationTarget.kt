@@ -17,12 +17,15 @@ import com.woocommerce.android.viewmodel.MultiLiveEvent.Event
  */
 sealed class ProductNavigationTarget : Event() {
     data class ShareProduct(val url: String, val title: String) : ProductNavigationTarget()
-    data class ViewProductVariations(val remoteId: Long) : ProductNavigationTarget()
+    data class ViewProductVariations(
+        val remoteId: Long
+    ) : ProductNavigationTarget()
     data class ViewProductInventory(
         val inventoryData: InventoryData,
         val sku: String,
         val productType: ProductType
     ) : ProductNavigationTarget()
+    object ViewProductAttributes : ProductNavigationTarget()
     data class ViewProductPricing(val pricingData: PricingData) : ProductNavigationTarget()
     data class ViewProductShipping(val shippingData: ShippingData) : ProductNavigationTarget()
     data class ViewProductExternalLink(val remoteId: Long) : ProductNavigationTarget()
@@ -74,9 +77,16 @@ sealed class ProductNavigationTarget : Event() {
     ) :
         ProductNavigationTarget()
     object AddProductDownloadableFile : ProductNavigationTarget()
-    object AddProductAttribute : ProductNavigationTarget()
+    data class AddProductAttribute(
+        val isVariationCreation: Boolean = false
+    ) : ProductNavigationTarget()
     data class AddProductAttributeTerms(
         val attributeId: Long,
+        val attributeName: String,
+        val isNewAttribute: Boolean,
+        val isVariationCreation: Boolean
+    ) : ProductNavigationTarget()
+    data class RenameProductAttribute(
         val attributeName: String
     ) : ProductNavigationTarget()
 }

@@ -43,8 +43,11 @@ object AppPrefs {
         IMAGE_OPTIMIZE_ENABLED,
         SELECTED_APP_THEME,
         SELECTED_PRODUCT_TYPE,
+        SELECTED_PRODUCT_IS_VIRTUAL,
         UNIFIED_LOGIN_LAST_ACTIVE_SOURCE,
-        UNIFIED_LOGIN_LAST_ACTIVE_FLOW
+        UNIFIED_LOGIN_LAST_ACTIVE_FLOW,
+        IS_USER_ELIGIBLE,
+        USER_EMAIL
     }
 
     /**
@@ -174,6 +177,14 @@ object AppPrefs {
 
     fun setV4StatsSupported(isUsingV4Api: Boolean) = setBoolean(DeletablePrefKey.IS_USING_V4_API, isUsingV4Api)
 
+    fun isUserEligible() = getBoolean(DeletablePrefKey.IS_USER_ELIGIBLE, true)
+
+    fun setIsUserEligible(isUserEligible: Boolean) = setBoolean(DeletablePrefKey.IS_USER_ELIGIBLE, isUserEligible)
+
+    fun getUserEmail() = getString(DeletablePrefKey.USER_EMAIL)
+
+    fun setUserEmail(email: String) = setString(DeletablePrefKey.USER_EMAIL, email)
+
     /**
      * Flag to check products features are enabled
      */
@@ -275,6 +286,11 @@ object AppPrefs {
     fun setSelectedProductType(type: ProductType) = setString(DeletablePrefKey.SELECTED_PRODUCT_TYPE, type.value)
 
     fun getSelectedProductType(): String = getString(DeletablePrefKey.SELECTED_PRODUCT_TYPE, "")
+
+    fun setSelectedProductIsVirtual(isVirtual: Boolean) =
+        setBoolean(DeletablePrefKey.SELECTED_PRODUCT_IS_VIRTUAL, isVirtual)
+
+    fun isSelectedProductVirtual(): Boolean = getBoolean(DeletablePrefKey.SELECTED_PRODUCT_IS_VIRTUAL, false)
 
     /**
      * Checks if the user has a saved order list tab position yet. If no position has been saved,

@@ -10,19 +10,17 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MediatorLiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.Observer
+import androidx.lifecycle.SavedStateHandle
 import androidx.paging.PagedList
-import com.squareup.inject.assisted.Assisted
-import com.squareup.inject.assisted.AssistedInject
 import com.woocommerce.android.R
 import com.woocommerce.android.analytics.AnalyticsTracker
 import com.woocommerce.android.analytics.AnalyticsTracker.Companion.KEY_STATUS
 import com.woocommerce.android.analytics.AnalyticsTracker.Companion.KEY_TOTAL_DURATION
 import com.woocommerce.android.analytics.AnalyticsTracker.Stat
 import com.woocommerce.android.annotations.OpenClassOnDebug
-import com.woocommerce.android.di.ViewModelAssistedFactory
 import com.woocommerce.android.model.RequestResult.SUCCESS
 import com.woocommerce.android.network.ConnectionChangeReceiver.ConnectionChangeEvent
-import com.woocommerce.android.push.NotificationHandler.NotificationChannelType.NEW_ORDER
+import com.woocommerce.android.push.NotificationHandler.NotificationChannelType
 import com.woocommerce.android.push.NotificationHandler.NotificationReceivedEvent
 import com.woocommerce.android.tools.NetworkStatus
 import com.woocommerce.android.tools.SelectedSite
@@ -32,49 +30,49 @@ import com.woocommerce.android.util.ThrottleLiveData
 import com.woocommerce.android.viewmodel.LiveDataDelegate
 import com.woocommerce.android.viewmodel.MultiLiveEvent.Event
 import com.woocommerce.android.viewmodel.ResourceProvider
-import com.woocommerce.android.viewmodel.SavedStateWithArgs
 import com.woocommerce.android.viewmodel.ScopedViewModel
 import com.woocommerce.android.widgets.WCEmptyView.EmptyViewType
-import kotlinx.android.parcel.Parcelize
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
+import kotlinx.parcelize.Parcelize
 import org.greenrobot.eventbus.EventBus
 import org.greenrobot.eventbus.Subscribe
 import org.greenrobot.eventbus.ThreadMode
 import org.greenrobot.eventbus.ThreadMode.MAIN
 import org.wordpress.android.fluxc.Dispatcher
-import org.wordpress.android.fluxc.action.NotificationAction.FETCH_NOTIFICATION
-import org.wordpress.android.fluxc.action.NotificationAction.UPDATE_NOTIFICATION
 import org.wordpress.android.fluxc.action.WCOrderAction.UPDATE_ORDER_STATUS
 import org.wordpress.android.fluxc.model.WCOrderListDescriptor
 import org.wordpress.android.fluxc.model.WCOrderStatusModel
 import org.wordpress.android.fluxc.model.list.PagedListWrapper
 import org.wordpress.android.fluxc.network.rest.wpcom.wc.order.CoreOrderStatus
 import org.wordpress.android.fluxc.store.ListStore
-import org.wordpress.android.fluxc.store.NotificationStore.OnNotificationChanged
+import org.wordpress.android.fluxc.store.WCOrderFetcher
 import org.wordpress.android.fluxc.store.WCOrderStore
 import org.wordpress.android.fluxc.store.WCOrderStore.OnOrderChanged
 import org.wordpress.android.fluxc.store.WCOrderStore.OnOrderSummariesFetched
 import org.wordpress.android.fluxc.store.WooCommerceStore
 import java.util.Locale
+import javax.inject.Inject
 
 private const val EMPTY_VIEW_THROTTLE = 250L
 typealias PagedOrdersList = PagedList<OrderListItemUIType>
 
 @OpenClassOnDebug
 @Suppress("LeakingThis")
-class OrderListViewModel @AssistedInject constructor(
-    @Assisted savedState: SavedStateWithArgs,
-    coroutineDispatchers: CoroutineDispatchers,
+@HiltViewModel
+class OrderListViewModel @Inject constructor(
+    savedState: SavedStateHandle,
+    private val dispatchers: CoroutineDispatchers,
     protected val repository: OrderListRepository,
     private val orderStore: WCOrderStore,
     private val listStore: ListStore,
     private val networkStatus: NetworkStatus,
     private val dispatcher: Dispatcher,
     private val selectedSite: SelectedSite,
-    private val fetcher: OrderFetcher,
+    private val fetcher: WCOrderFetcher,
     private val resourceProvider: ResourceProvider,
     private val wooCommerceStore: WooCommerceStore
-) : ScopedViewModel(savedState, coroutineDispatchers), LifecycleOwner {
+) : ScopedViewModel(savedState), LifecycleOwner {
     protected val lifecycleRegistry: LifecycleRegistry by lazy {
         LifecycleRegistry(this)
     }
@@ -110,8 +108,8 @@ class OrderListViewModel @AssistedInject constructor(
         ThrottleLiveData<EmptyViewType?>(
                 offset = EMPTY_VIEW_THROTTLE,
                 coroutineScope = this,
-                mainDispatcher = coroutineDispatchers.main,
-                backgroundDispatcher = coroutineDispatchers.computation)
+                mainDispatcher = dispatchers.main,
+                backgroundDispatcher = dispatchers.computation)
     }
     val emptyViewType: LiveData<EmptyViewType?> = _emptyViewType
 
@@ -389,21 +387,6 @@ class OrderListViewModel @AssistedInject constructor(
 
     @Suppress("unused")
     @Subscribe(threadMode = ThreadMode.MAIN)
-    fun onNotificationChanged(event: OnNotificationChanged) {
-        when (event.causeOfChange) {
-            FETCH_NOTIFICATION, UPDATE_NOTIFICATION -> {
-                // A notification was received by the device and the details have been fetched from the API.
-                // Refresh the orders list in case that notification was a new order notification.
-                if (!event.isError) {
-                    activePagedListWrapper?.invalidateData()
-                }
-            }
-            else -> {}
-        }
-    }
-
-    @Suppress("unused")
-    @Subscribe(threadMode = ThreadMode.MAIN)
     fun onOrderChanged(event: OnOrderChanged) {
         when (event.causeOfChange) {
             // A child fragment made a change that requires a data refresh.
@@ -438,14 +421,9 @@ class OrderListViewModel @AssistedInject constructor(
 
     @Suppress("unused")
     @Subscribe(threadMode = ThreadMode.MAIN)
-    fun onEventMainThread(event: NotificationReceivedEvent) {
-        // a new order notification came in so refresh the active order list
-        if (event.channel == NEW_ORDER) {
-            if (isSearching) {
-                activePagedListWrapper?.fetchFirstPage()
-            }
-            allPagedListWrapper?.fetchFirstPage()
-            processingPagedListWrapper?.fetchFirstPage()
+    fun onNotificationReceived(event: NotificationReceivedEvent) {
+        if (event.channel == NotificationChannelType.NEW_ORDER && isSearching) {
+            activePagedListWrapper?.fetchFirstPage()
         }
     }
 
@@ -473,7 +451,4 @@ class OrderListViewModel @AssistedInject constructor(
         val isRefreshPending: Boolean = false,
         val arePaymentGatewaysFetched: Boolean = false
     ) : Parcelable
-
-    @AssistedInject.Factory
-    interface Factory : ViewModelAssistedFactory<OrderListViewModel>
 }

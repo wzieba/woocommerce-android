@@ -3,12 +3,10 @@ package com.woocommerce.android.ui.orders.shippinglabels.creation
 import android.os.Parcelable
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
-import com.squareup.inject.assisted.Assisted
-import com.squareup.inject.assisted.AssistedInject
+import androidx.lifecycle.SavedStateHandle
 import com.woocommerce.android.R
-import com.woocommerce.android.di.ViewModelAssistedFactory
+import com.woocommerce.android.R.string
 import com.woocommerce.android.extensions.isEqualTo
-import com.woocommerce.android.model.Order
 import com.woocommerce.android.model.ShippingRate
 import com.woocommerce.android.model.ShippingRate.Option
 import com.woocommerce.android.model.ShippingRate.Option.ADULT_SIGNATURE
@@ -17,10 +15,7 @@ import com.woocommerce.android.model.ShippingRate.Option.SIGNATURE
 import com.woocommerce.android.ui.orders.shippinglabels.ShippingLabelRepository
 import com.woocommerce.android.ui.orders.shippinglabels.creation.ShippingCarrierRatesAdapter.PackageRateListItem
 import com.woocommerce.android.ui.orders.shippinglabels.creation.ShippingCarrierRatesAdapter.ShippingRateItem
-import com.woocommerce.android.ui.orders.shippinglabels.creation.ShippingCarrierRatesAdapter.ShippingRateItem.ShippingCarrier.FEDEX
-import com.woocommerce.android.ui.orders.shippinglabels.creation.ShippingCarrierRatesAdapter.ShippingRateItem.ShippingCarrier.UPS
-import com.woocommerce.android.ui.orders.shippinglabels.creation.ShippingCarrierRatesAdapter.ShippingRateItem.ShippingCarrier.USPS
-import com.woocommerce.android.util.CoroutineDispatchers
+import com.woocommerce.android.ui.orders.shippinglabels.creation.ShippingCarrierRatesAdapter.ShippingRateItem.ShippingCarrier
 import com.woocommerce.android.util.CurrencyFormatter
 import com.woocommerce.android.util.PriceUtils
 import com.woocommerce.android.viewmodel.LiveDataDelegate
@@ -28,22 +23,24 @@ import com.woocommerce.android.viewmodel.MultiLiveEvent.Event.Exit
 import com.woocommerce.android.viewmodel.MultiLiveEvent.Event.ExitWithResult
 import com.woocommerce.android.viewmodel.MultiLiveEvent.Event.ShowSnackbar
 import com.woocommerce.android.viewmodel.ResourceProvider
-import com.woocommerce.android.viewmodel.SavedStateWithArgs
 import com.woocommerce.android.viewmodel.ScopedViewModel
-import kotlinx.android.parcel.Parcelize
+import com.woocommerce.android.viewmodel.navArgs
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
+import kotlinx.parcelize.Parcelize
 import org.wordpress.android.fluxc.model.shippinglabels.WCShippingRatesResult.ShippingPackage
 import org.wordpress.android.fluxc.network.BaseRequest.GenericErrorType.NOT_FOUND
 import org.wordpress.android.fluxc.network.rest.wpcom.wc.shippinglabels.ShippingLabelRestClient.ShippingRatesApiResponse.ShippingOption.Rate
 import java.math.BigDecimal
+import javax.inject.Inject
 
-class ShippingCarrierRatesViewModel @AssistedInject constructor(
-    @Assisted savedState: SavedStateWithArgs,
-    dispatchers: CoroutineDispatchers,
+@HiltViewModel
+class ShippingCarrierRatesViewModel @Inject constructor(
+    savedState: SavedStateHandle,
     private val shippingLabelRepository: ShippingLabelRepository,
     private val resourceProvider: ResourceProvider,
     private val currencyFormatter: CurrencyFormatter
-) : ScopedViewModel(savedState, dispatchers) {
+) : ScopedViewModel(savedState) {
     companion object {
         private const val DEFAULT_RATE_OPTION = "default"
         private const val SIGNATURE_RATE_OPTION = "signature_required"
@@ -51,15 +48,9 @@ class ShippingCarrierRatesViewModel @AssistedInject constructor(
         private const val CARRIER_USPS_KEY = "usps"
         private const val CARRIER_UPS_KEY = "ups"
         private const val CARRIER_FEDEX_KEY = "fedex"
-        private const val FLAT_RATE_KEY = "flat_rate"
-        private const val FREE_SHIPPING_KEY = "free_shipping"
-        private const val LOCAL_PICKUP_KEY = "local_pickup"
-        private const val SHIPPING_METHOD_USPS_TITLE = "USPS"
-        private const val SHIPPING_METHOD_DHL_TITLE = "DHL Express"
-        private const val SHIPPING_METHOD_FEDEX_TITLE = "Fedex"
-        private const val SHIPPING_METHOD_USPS_KEY = "wc_services_usps"
-        private const val SHIPPING_METHOD_DHL_KEY = "wc_services_dhlexpress"
-        private const val SHIPPING_METHOD_FEDEX_KEY = "wc_services_fedex"
+        private const val CARRIER_DHL_EXPRESS_KEY = "dhlexpress"
+        private const val CARRIER_DHL_ECOMMERCE_KEY = "dhlecommerce"
+        private const val CARRIER_DHL_ECOMMERCE_ASIA_KEY = "dhlecommerceasia"
     }
     private val arguments: ShippingCarrierRatesFragmentArgs by savedState.navArgs()
 
@@ -88,24 +79,29 @@ class ShippingCarrierRatesViewModel @AssistedInject constructor(
             arguments.order,
             arguments.originAddress,
             arguments.destinationAddress,
-            arguments.packages.toList()
+            arguments.packages.toList(),
+            arguments.customsPackages?.toList()
         )
 
         if (carrierRatesResult.isError) {
             viewState = viewState.copy(isEmptyViewVisible = true, isDoneButtonVisible = false)
             if (carrierRatesResult.error.original != NOT_FOUND) {
-                triggerEvent(ShowSnackbar(R.string.shipping_label_shipping_carrier_rates_generic_error))
+                triggerEvent(ShowSnackbar(string.shipping_label_shipping_carrier_rates_generic_error))
                 triggerEvent(Exit)
             }
         } else {
             updateRates(generateRateModels(carrierRatesResult.model!!))
 
-            var banner: String? = null
-            if (arguments.order.shippingTotal > BigDecimal.ZERO) {
-                banner = resourceProvider.getString(
+            val banner = when {
+                arguments.order.shippingLines.isEmpty() -> null
+                arguments.order.shippingTotal.isEqualTo(BigDecimal.ZERO) -> resourceProvider.getString(
+                    R.string.shipping_label_shipping_carrier_shipping_method_banner_message,
+                    arguments.order.shippingLines.first().methodTitle
+                )
+                else -> resourceProvider.getString(
                     R.string.shipping_label_shipping_carrier_flat_fee_banner_message,
-                    arguments.order.shippingTotal.format(),
-                    getShippingMethods(arguments.order).joinToString()
+                    arguments.order.shippingLines.first().methodTitle,
+                    arguments.order.shippingTotal.format()
                 )
             }
             viewState = viewState.copy(isEmptyViewVisible = false, bannerMessage = banner)
@@ -142,6 +138,7 @@ class ShippingCarrierRatesViewModel @AssistedInject constructor(
                 val options = mapOf(
                     DEFAULT to ShippingRate(
                         pkg.boxId,
+                        default.shipmentId,
                         default.rateId,
                         default.serviceId,
                         default.carrierId,
@@ -155,6 +152,7 @@ class ShippingCarrierRatesViewModel @AssistedInject constructor(
                     SIGNATURE to signature?.let { option ->
                         ShippingRate(
                             pkg.boxId,
+                            option.shipmentId,
                             option.rateId,
                             option.serviceId,
                             option.carrierId,
@@ -169,6 +167,7 @@ class ShippingCarrierRatesViewModel @AssistedInject constructor(
                     ADULT_SIGNATURE to adultSignature?.let { option ->
                         ShippingRate(
                             pkg.boxId,
+                            option.shipmentId,
                             option.rateId,
                             option.serviceId,
                             option.carrierId,
@@ -186,6 +185,10 @@ class ShippingCarrierRatesViewModel @AssistedInject constructor(
                     it.packageId == pkg.boxId && it.serviceId == default.serviceId
                 }?.option
 
+                val insuranceFormatted = default.insurance?.toBigDecimalOrNull()
+                    ?.let { resourceProvider.getString(R.string.shipping_label_rate_insurance_up_to, it.format()) }
+                    ?: default.insurance
+
                 ShippingRateItem(
                     serviceId = default.serviceId,
                     title = default.title,
@@ -194,8 +197,8 @@ class ShippingCarrierRatesViewModel @AssistedInject constructor(
                     carrier = getCarrier(default),
                     isTrackingAvailable = default.hasTracking,
                     isFreePickupAvailable = default.isPickupFree,
-                    isInsuranceAvailable = default.insurance > BigDecimal.ZERO,
-                    insuranceCoverage = default.insurance.format(),
+                    isInsuranceAvailable = !insuranceFormatted.isNullOrEmpty(),
+                    insuranceCoverage = insuranceFormatted,
                     options = options,
                     selectedOption = selectedOption
                 )
@@ -206,20 +209,6 @@ class ShippingCarrierRatesViewModel @AssistedInject constructor(
                 itemCount = arguments.packages[i].items.size,
                 rateOptions = shippingRates
             )
-        }
-    }
-
-    private fun getShippingMethods(order: Order): List<String> {
-        return order.shippingMethods.map {
-            when (it.id) {
-                FLAT_RATE_KEY -> resourceProvider.getString(R.string.shipping_label_shipping_method_flat_rate)
-                FREE_SHIPPING_KEY -> resourceProvider.getString(R.string.shipping_label_shipping_method_free_shipping)
-                LOCAL_PICKUP_KEY -> resourceProvider.getString(R.string.shipping_label_shipping_method_local_pickup)
-                SHIPPING_METHOD_USPS_KEY -> SHIPPING_METHOD_USPS_TITLE
-                SHIPPING_METHOD_FEDEX_KEY -> SHIPPING_METHOD_FEDEX_TITLE
-                SHIPPING_METHOD_DHL_KEY -> SHIPPING_METHOD_DHL_TITLE
-                else -> resourceProvider.getString(R.string.other)
-            }
         }
     }
 
@@ -234,10 +223,11 @@ class ShippingCarrierRatesViewModel @AssistedInject constructor(
 
     private fun getCarrier(it: Rate) =
         when (it.carrierId) {
-            CARRIER_USPS_KEY -> USPS
-            CARRIER_FEDEX_KEY -> FEDEX
-            CARRIER_UPS_KEY -> UPS
-            else -> throw IllegalArgumentException("Unsupported carrier ID: `${it.carrierId}`")
+            CARRIER_USPS_KEY -> ShippingCarrier.USPS
+            CARRIER_FEDEX_KEY -> ShippingCarrier.FEDEX
+            CARRIER_UPS_KEY -> ShippingCarrier.UPS
+            CARRIER_DHL_EXPRESS_KEY, CARRIER_DHL_ECOMMERCE_KEY, CARRIER_DHL_ECOMMERCE_ASIA_KEY -> ShippingCarrier.DHL
+            else -> ShippingCarrier.UNKNOWN
         }
 
     fun onShippingRateSelected(rate: ShippingRate) {
@@ -278,7 +268,4 @@ class ShippingCarrierRatesViewModel @AssistedInject constructor(
         val isEmptyViewVisible: Boolean = false,
         val isDoneButtonVisible: Boolean = false
     ) : Parcelable
-
-    @AssistedInject.Factory
-    interface Factory : ViewModelAssistedFactory<ShippingCarrierRatesViewModel>
 }

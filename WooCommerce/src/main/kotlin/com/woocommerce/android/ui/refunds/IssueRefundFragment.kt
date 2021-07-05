@@ -8,32 +8,27 @@ import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentManager
 import androidx.fragment.app.FragmentPagerAdapter
+import androidx.hilt.navigation.fragment.hiltNavGraphViewModels
 import androidx.lifecycle.Observer
 import androidx.navigation.fragment.findNavController
-import androidx.navigation.navGraphViewModels
 import com.woocommerce.android.R
-import com.woocommerce.android.ui.base.UIMessageResolver
-import javax.inject.Inject
 import com.woocommerce.android.analytics.AnalyticsTracker
 import com.woocommerce.android.extensions.navigateSafely
 import com.woocommerce.android.extensions.takeIfNotEqualTo
 import com.woocommerce.android.ui.base.BaseFragment
+import com.woocommerce.android.ui.base.UIMessageResolver
 import com.woocommerce.android.ui.refunds.IssueRefundViewModel.IssueRefundEvent.ShowRefundSummary
 import com.woocommerce.android.ui.refunds.IssueRefundViewModel.RefundType
 import com.woocommerce.android.ui.refunds.IssueRefundViewModel.RefundType.AMOUNT
 import com.woocommerce.android.ui.refunds.IssueRefundViewModel.RefundType.ITEMS
-import com.woocommerce.android.viewmodel.ViewModelFactory
-import dagger.Lazy
-import kotlinx.android.synthetic.main.fragment_refund_by_amount.*
-import org.wordpress.android.util.ActivityUtils
+import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 
+@AndroidEntryPoint
 class IssueRefundFragment : BaseFragment() {
-    @Inject lateinit var viewModelFactory: Lazy<ViewModelFactory>
     @Inject lateinit var uiMessageResolver: UIMessageResolver
 
-    private val viewModel: IssueRefundViewModel by navGraphViewModels(R.id.nav_graph_refunds) {
-        viewModelFactory.get()
-    }
+    private val viewModel: IssueRefundViewModel by hiltNavGraphViewModels(R.id.nav_graph_refunds)
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
         super.onCreate(savedInstanceState)
@@ -76,12 +71,13 @@ class IssueRefundFragment : BaseFragment() {
         viewModel.commonStateLiveData.observe(viewLifecycleOwner) { old, new ->
             new.screenTitle?.takeIfNotEqualTo(old?.screenTitle) { requireActivity().title = it }
 
-            if (new.refundType == AMOUNT) {
-                issueRefund_refundAmount.requestFocus()
-                ActivityUtils.showKeyboard(issueRefund_refundAmount)
-            } else {
-                ActivityUtils.hideKeyboard(requireActivity())
-            }
+            // As the tabs are hidden, this logic is not used for now
+//            if (new.refundType == AMOUNT) {
+//                issueRefund_refundAmount.requestFocus()
+//                ActivityUtils.showKeyboard(issueRefund_refundAmount)
+//            } else {
+//                ActivityUtils.hideKeyboard(requireActivity())
+//            }
         }
 
         viewModel.event.observe(viewLifecycleOwner, Observer { event ->

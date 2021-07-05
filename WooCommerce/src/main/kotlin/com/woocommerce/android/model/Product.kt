@@ -10,14 +10,13 @@ import com.woocommerce.android.extensions.formatToString
 import com.woocommerce.android.extensions.formatToYYYYmmDDhhmmss
 import com.woocommerce.android.extensions.isEquivalentTo
 import com.woocommerce.android.extensions.isNotSet
-import com.woocommerce.android.extensions.roundError
 import com.woocommerce.android.ui.products.ProductBackorderStatus
 import com.woocommerce.android.ui.products.ProductStatus
 import com.woocommerce.android.ui.products.ProductStockStatus
 import com.woocommerce.android.ui.products.ProductTaxStatus
 import com.woocommerce.android.ui.products.ProductType
 import com.woocommerce.android.ui.products.settings.ProductCatalogVisibility
-import kotlinx.android.parcel.Parcelize
+import kotlinx.parcelize.Parcelize
 import org.wordpress.android.fluxc.model.MediaModel
 import org.wordpress.android.fluxc.model.WCProductFileModel
 import org.wordpress.android.fluxc.model.WCProductModel
@@ -52,7 +51,7 @@ data class Product(
     val regularPrice: BigDecimal?,
     val taxClass: String,
     val isStockManaged: Boolean,
-    val stockQuantity: Int,
+    val stockQuantity: Double,
     val sku: String,
     val shippingClass: String,
     val shippingClassId: Long,
@@ -104,7 +103,6 @@ data class Product(
             sku == product.sku &&
             slug == product.slug &&
             type == product.type &&
-            numVariations == product.numVariations &&
             name.fastStripHtml() == product.name.fastStripHtml() &&
             description == product.description &&
             shortDescription == product.shortDescription &&
@@ -151,6 +149,8 @@ data class Product(
                 shippingClass.isNotEmpty()
         }
     val productType get() = ProductType.fromString(type)
+    val variationEnabledAttributes
+        get() = attributes.filter { it.isVariation }
 
     /**
      * Verifies if there are any changes made to the external link settings
@@ -218,9 +218,17 @@ data class Product(
     }
 
     fun hasAttributeChanges(updatedProduct: Product?): Boolean {
-        return updatedProduct?.let {
-            attributes != it.attributes
-        } ?: false
+        updatedProduct?.attributes?.let { updatedAttributes ->
+            if (updatedAttributes.size != this.attributes.size) {
+                return true
+            }
+            updatedAttributes.forEach {
+                if (!this.attributes.containsAttribute(it)) {
+                    return true
+                }
+            }
+        }
+        return false
     }
 
     fun hasLinkedProducts() = crossSellProductIds.size > 0 || upsellProductIds.size > 0
@@ -319,7 +327,7 @@ data class Product(
     }
 }
 
-fun Product.toDataModel(storedProductModel: WCProductModel?): WCProductModel {
+fun Product.toDataModel(storedProductModel: WCProductModel? = null): WCProductModel {
     fun imagesToJson(): String {
         val jsonArray = JsonArray()
         for (image in images) {
@@ -469,8 +477,8 @@ fun WCProductModel.toAppModel(): Product {
         permalink = this.permalink,
         externalUrl = this.externalUrl,
         buttonText = this.buttonText,
-        salePrice = this.salePrice.toBigDecimalOrNull()?.roundError(),
-        regularPrice = this.regularPrice.toBigDecimalOrNull()?.roundError(),
+        salePrice = this.salePrice.toBigDecimalOrNull(),
+        regularPrice = this.regularPrice.toBigDecimalOrNull(),
         // In Core, if a tax class is empty it is considered as standard and we are following the same
         // procedure here
         taxClass = if (this.taxClass.isEmpty()) Product.TAX_CLASS_DEFAULT else this.taxClass,
@@ -504,9 +512,7 @@ fun WCProductModel.toAppModel(): Product {
                 DateTimeUtils.dateFromIso8601(this.dateCreated) ?: Date()
             )
         },
-        attributes = this.getAttributeList().map {
-            it.toAppModel()
-        },
+        attributes = this.getAttributeList().map { it.toAppModel() },
         saleEndDateGmt = this.dateOnSaleToGmt.formatDateToISO8601Format(),
         saleStartDateGmt = this.dateOnSaleFromGmt.formatDateToISO8601Format(),
         isSoldIndividually = this.soldIndividually,
@@ -549,13 +555,7 @@ fun WCProductModel.toProductReviewProductModel() =
     ProductReviewProduct(this.remoteProductId, this.name, this.permalink)
 
 /**
- * TODO: move to FluxC model
+ * Returns true if the passed attribute is in the current list of attributes
  */
-fun WCProductModel.ProductAttribute.toJson(): JsonObject {
-    return JsonObject().also { json ->
-        json.addProperty("id", id)
-        json.addProperty("name", name)
-        json.addProperty("visible", visible)
-        json.addProperty("options", options.joinToString())
-    }
-}
+fun List<ProductAttribute>.containsAttribute(attribute: ProductAttribute): Boolean =
+    this.find { attribute.id == it.id && attribute.name == it.name && attribute.terms == it.terms } != null

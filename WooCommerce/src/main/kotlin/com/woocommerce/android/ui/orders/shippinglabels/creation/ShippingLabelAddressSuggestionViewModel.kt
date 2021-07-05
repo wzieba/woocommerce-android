@@ -2,28 +2,38 @@ package com.woocommerce.android.ui.orders.shippinglabels.creation
 
 import android.os.Parcelable
 import androidx.annotation.StringRes
-import com.squareup.inject.assisted.Assisted
-import com.squareup.inject.assisted.AssistedInject
+import androidx.lifecycle.SavedStateHandle
 import com.woocommerce.android.R
-import com.woocommerce.android.di.ViewModelAssistedFactory
+import com.woocommerce.android.analytics.AnalyticsTracker
+import com.woocommerce.android.analytics.AnalyticsTracker.Stat.SHIPPING_LABEL_ADDRESS_SUGGESTIONS_EDIT_SELECTED_ADDRESS_BUTTON_TAPPED
+import com.woocommerce.android.analytics.AnalyticsTracker.Stat.SHIPPING_LABEL_ADDRESS_SUGGESTIONS_USE_SELECTED_ADDRESS_BUTTON_TAPPED
 import com.woocommerce.android.model.Address
 import com.woocommerce.android.ui.orders.shippinglabels.creation.CreateShippingLabelEvent.EditSelectedAddress
 import com.woocommerce.android.ui.orders.shippinglabels.creation.CreateShippingLabelEvent.UseSelectedAddress
 import com.woocommerce.android.ui.orders.shippinglabels.creation.ShippingLabelAddressValidator.AddressType.ORIGIN
-import com.woocommerce.android.util.CoroutineDispatchers
 import com.woocommerce.android.viewmodel.LiveDataDelegate
 import com.woocommerce.android.viewmodel.MultiLiveEvent.Event.Exit
-import com.woocommerce.android.viewmodel.SavedStateWithArgs
 import com.woocommerce.android.viewmodel.ScopedViewModel
-import kotlinx.android.parcel.Parcelize
+import com.woocommerce.android.viewmodel.navArgs
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.parcelize.IgnoredOnParcel
+import kotlinx.parcelize.Parcelize
+import javax.inject.Inject
 
-class ShippingLabelAddressSuggestionViewModel @AssistedInject constructor(
-    @Assisted savedState: SavedStateWithArgs,
-    dispatchers: CoroutineDispatchers
-) : ScopedViewModel(savedState, dispatchers) {
+@HiltViewModel
+class ShippingLabelAddressSuggestionViewModel @Inject constructor(
+    savedState: SavedStateHandle
+) : ScopedViewModel(savedState) {
     private val arguments: ShippingLabelAddressSuggestionFragmentArgs by savedState.navArgs()
 
-    val viewStateData = LiveDataDelegate(savedState, ViewState(arguments.enteredAddress, arguments.suggestedAddress))
+    val viewStateData = LiveDataDelegate(
+        savedState,
+        ViewState(
+            enteredAddress = arguments.enteredAddress,
+            suggestedAddress = arguments.suggestedAddress,
+            selectedAddress = arguments.suggestedAddress
+        )
+    )
     private var viewState by viewStateData
 
     init {
@@ -37,15 +47,35 @@ class ShippingLabelAddressSuggestionViewModel @AssistedInject constructor(
     }
 
     fun onUseSelectedAddressTapped() {
+        trackUseAddressEvent()
+
         viewState.selectedAddress?.let {
             triggerEvent(UseSelectedAddress(it))
         }
     }
 
+    private fun trackUseAddressEvent() {
+        val addressType = if (viewState.selectedAddress == viewState.suggestedAddress) "suggested" else "original"
+        AnalyticsTracker.track(
+            SHIPPING_LABEL_ADDRESS_SUGGESTIONS_USE_SELECTED_ADDRESS_BUTTON_TAPPED,
+            mapOf("type" to addressType)
+        )
+    }
+
     fun onEditSelectedAddressTapped() {
+        trackEditAddressEvent()
+
         viewState.selectedAddress?.let {
             triggerEvent(EditSelectedAddress(it))
         }
+    }
+
+    private fun trackEditAddressEvent() {
+        val addressType = if (viewState.selectedAddress == viewState.suggestedAddress) "suggested" else "original"
+        AnalyticsTracker.track(
+            SHIPPING_LABEL_ADDRESS_SUGGESTIONS_EDIT_SELECTED_ADDRESS_BUTTON_TAPPED,
+            mapOf("type" to addressType)
+        )
     }
 
     fun onSelectedAddressChanged(isSuggestedAddress: Boolean) {
@@ -64,9 +94,7 @@ class ShippingLabelAddressSuggestionViewModel @AssistedInject constructor(
         val selectedAddress: Address? = null,
         @StringRes val title: Int? = null
     ) : Parcelable {
+        @IgnoredOnParcel
         val areButtonsEnabled: Boolean = selectedAddress != null
     }
-
-    @AssistedInject.Factory
-    interface Factory : ViewModelAssistedFactory<ShippingLabelAddressSuggestionViewModel>
 }

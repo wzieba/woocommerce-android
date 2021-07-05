@@ -1,10 +1,10 @@
 package com.woocommerce.android.ui.products
 
-import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.SavedStateHandle
 import com.nhaarman.mockitokotlin2.any
 import com.nhaarman.mockitokotlin2.clearInvocations
 import com.nhaarman.mockitokotlin2.doReturn
+import com.nhaarman.mockitokotlin2.eq
 import com.nhaarman.mockitokotlin2.mock
 import com.nhaarman.mockitokotlin2.spy
 import com.nhaarman.mockitokotlin2.times
@@ -13,8 +13,10 @@ import com.nhaarman.mockitokotlin2.whenever
 import com.woocommerce.android.AppPrefs
 import com.woocommerce.android.R
 import com.woocommerce.android.extensions.takeIfNotEqualTo
+import com.woocommerce.android.initSavedStateHandle
 import com.woocommerce.android.media.MediaFilesRepository
 import com.woocommerce.android.media.ProductImagesServiceWrapper
+import com.woocommerce.android.model.ProductVariation
 import com.woocommerce.android.tools.NetworkStatus
 import com.woocommerce.android.tools.SelectedSite
 import com.woocommerce.android.ui.products.ProductDetailViewModel.ProductDetailViewState
@@ -28,20 +30,20 @@ import com.woocommerce.android.ui.products.models.ProductPropertyCard.Type.PRIMA
 import com.woocommerce.android.ui.products.models.ProductPropertyCard.Type.SECONDARY
 import com.woocommerce.android.ui.products.models.SiteParameters
 import com.woocommerce.android.ui.products.tags.ProductTagsRepository
-import com.woocommerce.android.util.CoroutineTestRule
+import com.woocommerce.android.ui.products.variations.VariationRepository
 import com.woocommerce.android.util.CurrencyFormatter
+import com.woocommerce.android.util.ProductUtils
 import com.woocommerce.android.viewmodel.BaseUnitTest
+import com.woocommerce.android.viewmodel.MultiLiveEvent.Event.ShowDialog
 import com.woocommerce.android.viewmodel.MultiLiveEvent.Event.ShowSnackbar
 import com.woocommerce.android.viewmodel.ResourceProvider
-import com.woocommerce.android.viewmodel.SavedStateWithArgs
-import com.woocommerce.android.util.ProductUtils
-import com.woocommerce.android.viewmodel.MultiLiveEvent.Event.ShowDialog
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runBlockingTest
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.Before
-import org.junit.Rule
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 import org.wordpress.android.fluxc.store.WooCommerceStore
 import java.math.BigDecimal
 import java.time.LocalDateTime
@@ -49,6 +51,7 @@ import java.time.ZoneOffset
 import java.util.Date
 
 @ExperimentalCoroutinesApi
+@RunWith(RobolectricTestRunner::class)
 class ProductDetailViewModelTest : BaseUnitTest() {
     companion object {
         private const val PRODUCT_REMOTE_ID = 1L
@@ -64,6 +67,7 @@ class ProductDetailViewModelTest : BaseUnitTest() {
     private val productCategoriesRepository: ProductCategoriesRepository = mock()
     private val productTagsRepository: ProductTagsRepository = mock()
     private val mediaFilesRepository: MediaFilesRepository = mock()
+    private val variationRepository: VariationRepository = mock()
     private val resources: ResourceProvider = mock {
         on(it.getString(any())).thenAnswer { i -> i.arguments[0].toString() }
         on(it.getString(any(), any())).thenAnswer { i -> i.arguments[0].toString() }
@@ -73,24 +77,24 @@ class ProductDetailViewModelTest : BaseUnitTest() {
         on(it.formatCurrency(any<BigDecimal>(), any(), any())).thenAnswer { i -> "${i.arguments[1]}${i.arguments[0]}" }
     }
 
-    private val savedState: SavedStateWithArgs = spy(
-        SavedStateWithArgs(
-            SavedStateHandle(),
-            null,
-            ProductDetailFragmentArgs(remoteProductId = PRODUCT_REMOTE_ID)
-        )
-    )
+    private val savedState: SavedStateHandle =
+        ProductDetailFragmentArgs(remoteProductId = PRODUCT_REMOTE_ID).initSavedStateHandle()
 
-    private val siteParams = SiteParameters("$", "kg", "cm", 0f)
+    private val siteParams = SiteParameters(
+        currencyCode = "USD",
+        currencySymbol = "$",
+        currencyPosition = null,
+        weightUnit = "kg",
+        dimensionUnit = "cm",
+        gmtOffset = 0f
+    )
     private val parameterRepository: ParameterRepository = mock {
-        on(it.getParameters(any(), any())).thenReturn(siteParams)
+        on(it.getParameters(any(), any<SavedStateHandle>())).thenReturn(siteParams)
     }
 
     private val prefs: AppPrefs = mock()
     private val productUtils = ProductUtils()
 
-    @get:Rule
-    var coroutinesTestRule = CoroutineTestRule()
     private val product = ProductTestUtils.generateProduct(PRODUCT_REMOTE_ID)
     private val productWithTagsAndCategories = ProductTestUtils.generateProductWithTagsAndCategories(PRODUCT_REMOTE_ID)
     private val offlineProduct = ProductTestUtils.generateProduct(OFFLINE_PRODUCT_REMOTE_ID)
@@ -200,9 +204,6 @@ class ProductDetailViewModelTest : BaseUnitTest() {
 
     @Before
     fun setup() {
-        doReturn(MutableLiveData(ProductDetailViewState()))
-            .whenever(savedState).getLiveData<ProductDetailViewState>(any(), any())
-
         doReturn(true).whenever(networkStatus).isConnected()
 
         viewModel = spy(ProductDetailViewModel(
@@ -216,12 +217,12 @@ class ProductDetailViewModelTest : BaseUnitTest() {
             productCategoriesRepository,
             productTagsRepository,
             mediaFilesRepository,
+            variationRepository,
             prefs
         ))
 
         clearInvocations(
             viewModel,
-            savedState,
             selectedSite,
             productRepository,
             networkStatus,
@@ -475,7 +476,7 @@ class ProductDetailViewModelTest : BaseUnitTest() {
     @Test
     fun `Do not enable trashing a product when in add product flow`() {
         viewModel.start()
-        doReturn(true).whenever(viewModel).isAddFlow
+        doReturn(true).whenever(viewModel).isProductUnderCreation
         assertThat(viewModel.isTrashEnabled).isFalse()
     }
 
@@ -549,6 +550,86 @@ class ProductDetailViewModelTest : BaseUnitTest() {
         viewModel.updateProductDraft(saleEndDate = null)
 
         assertThat(productsDraft?.saleEndDateGmt).isNull()
+    }
+
+    @Test
+    fun `Re-ordering attribute terms is saved correctly`() {
+        viewModel.productDetailViewStateData.observeForever { _, _ -> }
+        val storedProduct = product.copy(
+            attributes = ProductTestUtils.generateProductAttributeList()
+        )
+        doReturn(storedProduct).whenever(productRepository).getProduct(any())
+
+        val attribute = storedProduct.attributes[0]
+        val firstTerm = attribute.terms[0]
+        val secondTerm = attribute.terms[1]
+
+        viewModel.start()
+        viewModel.swapProductDraftAttributeTerms(
+            attribute.id,
+            attribute.name,
+            firstTerm,
+            secondTerm
+        )
+
+        val draftAttribute = viewModel.productDraftAttributes[0]
+        val draftTerms = draftAttribute.terms
+        assertThat(draftTerms[0]).isEqualTo(secondTerm)
+        assertThat(draftTerms[1]).isEqualTo(firstTerm)
+    }
+
+    /**
+     * Protection for a race condition bug in Variations.
+     *
+     * We're requiring [ProductDetailRepository.fetchProduct] to be called right after
+     * [VariationRepository.createEmptyVariation] to fix a race condition problem in the Product Details page. The
+     * bug can be reproduced inconsistently by following these steps:
+     *
+     * 1. Create a new variable product.
+     * 2. Follow the flow of adding a variation until you've generated a variation.
+     * 3. You'll be navigated back to the Product Details page. And you'll see “Variations” with 1 count.
+     * 4. Navigate to the variations list by tapping on “Variations”.
+     * 5. Navigate back. The Variations count will sometimes be zero.
+     *
+     * The reason for this is that [VariationListViewModel.onExit] dictates what the number of variations should be
+     * displayed in the Product Detail page. So if the [VariationListViewModel] does not have the recent product
+     * information, it will incorrectly update the variations count.
+     *
+     * This can be inconsistent because, sometimes, there's a random _updating_ of the underlying Product
+     * like in [ProductDetailViewModel.saveAttributeChanges], which eventually fixes the variations count.
+     *
+     * Fetching right after generating a variation ensures that we have the latest Product information
+     * (and variations count) from the API.
+     */
+    @Test
+    fun `When generating a variation, the latest Product should be fetched from the site`() =
+            coroutinesTestRule.testDispatcher.runBlockingTest {
+        // Given
+        doReturn(product).whenever(productRepository).getProduct(any())
+
+        var productData: ProductDetailViewState? = null
+        viewModel.productDetailViewStateData.observeForever { _, new -> productData = new }
+
+        viewModel.start()
+
+        clearInvocations(productRepository)
+
+        // Precondition
+        assertThat(productData?.productDraft?.numVariations).isZero
+
+        doReturn(mock<ProductVariation>()).whenever(variationRepository).createEmptyVariation(any())
+        doReturn(product.copy(numVariations = 1_914)).whenever(productRepository).fetchProduct(eq(product.remoteId))
+
+        // When
+        viewModel.onAttributeListDoneButtonClicked()
+
+        // Then
+        verify(variationRepository, times(1)).createEmptyVariation(eq(product))
+        // Prove that we fetched from the API.
+        verify(productRepository, times(1)).fetchProduct(eq(product.remoteId))
+
+        // The VM state should have been updated with the _fetched_ product's numVariations
+        assertThat(productData?.productDraft?.numVariations).isEqualTo(1_914)
     }
 
     private val productsDraft

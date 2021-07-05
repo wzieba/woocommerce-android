@@ -1,16 +1,17 @@
 package com.woocommerce.android.ui.orders.shippinglabels.creation
 
 import android.os.Parcelable
+import com.woocommerce.android.analytics.AnalyticsTracker
+import com.woocommerce.android.analytics.AnalyticsTracker.Stat
 import com.woocommerce.android.model.Address
 import com.woocommerce.android.model.toAppModel
 import com.woocommerce.android.tools.SelectedSite
-import kotlinx.android.parcel.Parcelize
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.parcelize.Parcelize
 import org.wordpress.android.fluxc.model.shippinglabels.WCAddressVerificationResult
 import org.wordpress.android.fluxc.model.shippinglabels.WCAddressVerificationResult.InvalidAddress
 import org.wordpress.android.fluxc.model.shippinglabels.WCAddressVerificationResult.InvalidRequest
-import org.wordpress.android.fluxc.model.shippinglabels.WCShippingLabelModel.ShippingLabelAddress
 import org.wordpress.android.fluxc.model.shippinglabels.WCShippingLabelModel.ShippingLabelAddress.Type
 import org.wordpress.android.fluxc.network.rest.wpcom.wc.WooErrorType
 import org.wordpress.android.fluxc.network.rest.wpcom.wc.WooErrorType.GENERIC_ERROR
@@ -21,32 +22,68 @@ class ShippingLabelAddressValidator @Inject constructor(
     private val shippingLabelStore: WCShippingLabelStore,
     private val selectedSite: SelectedSite
 ) {
-    suspend fun validateAddress(address: Address, type: AddressType): ValidationResult {
-        if (isNameMissing(address)) {
-            return ValidationResult.NameMissing
-        } else {
-            val result = withContext(Dispatchers.IO) {
-                shippingLabelStore.verifyAddress(
-                    selectedSite.get(),
-                    address.toShippingLabelAddress(),
-                    type.toDataType()
-                )
-            }
+    suspend fun validateAddress(
+        address: Address,
+        type: AddressType,
+        requiresPhoneNumber: Boolean
+    ): ValidationResult {
+        return when {
+            isNameMissing(address) -> ValidationResult.NameMissing
+            requiresPhoneNumber && !address.hasValidPhoneNumber(type) -> ValidationResult.PhoneInvalid
+            else -> verifyAddress(address, type)
+        }
+    }
 
-            return if (result.isError) {
-                // TODO: Add analytics
-                ValidationResult.Error(result.error.type)
-            } else when (result.model) {
-                null -> ValidationResult.Error(GENERIC_ERROR)
-                is InvalidRequest -> ValidationResult.NotFound((result.model as InvalidRequest).message)
-                is InvalidAddress -> ValidationResult.Invalid((result.model as InvalidAddress).message)
-                is WCAddressVerificationResult.Valid -> {
-                    val suggestion = (result.model as WCAddressVerificationResult.Valid).suggestedAddress.toAppModel()
-                    if (suggestion.toString() != address.toString()) {
-                        ValidationResult.SuggestedChanges(suggestion)
-                    } else {
-                        ValidationResult.Valid
-                    }
+    private suspend fun verifyAddress(address: Address, type: AddressType): ValidationResult {
+        val result = withContext(Dispatchers.IO) {
+            shippingLabelStore.verifyAddress(
+                selectedSite.get(),
+                address.toShippingLabelModel(),
+                type.toDataType()
+            )
+        }
+
+        if (result.isError) {
+            AnalyticsTracker.track(
+                Stat.SHIPPING_LABEL_ADDRESS_VALIDATION_FAILED,
+                mapOf("error" to result.error.type.name)
+            )
+
+            return ValidationResult.Error(result.error.type)
+        }
+        return when (result.model) {
+            null -> {
+                AnalyticsTracker.track(
+                    Stat.SHIPPING_LABEL_ADDRESS_VALIDATION_FAILED,
+                    mapOf("error" to "response_model_null")
+                )
+
+                ValidationResult.Error(GENERIC_ERROR)
+            }
+            is InvalidRequest -> {
+                AnalyticsTracker.track(
+                    Stat.SHIPPING_LABEL_ADDRESS_VALIDATION_FAILED,
+                    mapOf("error" to "address_not_found")
+                )
+
+                ValidationResult.NotFound((result.model as InvalidRequest).message)
+            }
+            is InvalidAddress -> {
+                AnalyticsTracker.track(
+                    Stat.SHIPPING_LABEL_ADDRESS_VALIDATION_FAILED,
+                    mapOf("error" to "invalid_address")
+                )
+
+                ValidationResult.Invalid((result.model as InvalidAddress).message)
+            }
+            is WCAddressVerificationResult.Valid -> {
+                AnalyticsTracker.track(Stat.SHIPPING_LABEL_ADDRESS_VALIDATION_SUCCEEDED)
+                val suggestion =
+                    (result.model as WCAddressVerificationResult.Valid).suggestedAddress.toAppModel()
+                if (suggestion.toString() != address.toString()) {
+                    ValidationResult.SuggestedChanges(suggestion)
+                } else {
+                    ValidationResult.Valid
                 }
             }
         }
@@ -62,6 +99,9 @@ class ShippingLabelAddressValidator @Inject constructor(
 
         @Parcelize
         object NameMissing : ValidationResult()
+
+        @Parcelize
+        object PhoneInvalid : ValidationResult()
 
         @Parcelize
         data class SuggestedChanges(val suggested: Address) : ValidationResult()
@@ -86,19 +126,5 @@ class ShippingLabelAddressValidator @Inject constructor(
                 DESTINATION -> Type.DESTINATION
             }
         }
-    }
-
-    private fun Address.toShippingLabelAddress(): ShippingLabelAddress {
-        return ShippingLabelAddress(
-            company = company,
-            name = "$firstName $lastName",
-            phone = phone,
-            country = country,
-            state = state,
-            address = address1,
-            address2 = address2,
-            city = city,
-            postcode = postcode
-        )
     }
 }

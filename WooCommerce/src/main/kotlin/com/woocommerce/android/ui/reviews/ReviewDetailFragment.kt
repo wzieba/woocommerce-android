@@ -36,8 +36,8 @@ import com.woocommerce.android.util.WooLog
 import com.woocommerce.android.util.WooLog.T.REVIEWS
 import com.woocommerce.android.viewmodel.MultiLiveEvent.Event.Exit
 import com.woocommerce.android.viewmodel.MultiLiveEvent.Event.ShowSnackbar
-import com.woocommerce.android.viewmodel.ViewModelFactory
 import com.woocommerce.android.widgets.SkeletonView
+import dagger.hilt.android.AndroidEntryPoint
 import org.wordpress.android.util.DateTimeUtils
 import org.wordpress.android.util.DisplayUtils
 import org.wordpress.android.util.HtmlUtils
@@ -45,12 +45,12 @@ import org.wordpress.android.util.PhotonUtils
 import org.wordpress.android.util.UrlUtils
 import javax.inject.Inject
 
+@AndroidEntryPoint
 class ReviewDetailFragment : BaseFragment(R.layout.fragment_review_detail) {
-    @Inject lateinit var viewModelFactory: ViewModelFactory
     @Inject lateinit var uiMessageResolver: UIMessageResolver
     @Inject lateinit var productImageMap: ProductImageMap
 
-    private val viewModel: ReviewDetailViewModel by viewModels { viewModelFactory }
+    private val viewModel: ReviewDetailViewModel by viewModels()
 
     private var runOnStartFunc: (() -> Unit)? = null
     private var productIconSize: Int = 0
@@ -170,7 +170,7 @@ class ReviewDetailFragment : BaseFragment(R.layout.fragment_review_detail) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
             val stars = binding.reviewRatingBar.progressDrawable as? LayerDrawable
             stars?.getDrawable(2)?.setColorFilter(
-                    ContextCompat.getColor(requireContext(), R.color.alert_yellow),
+                    ContextCompat.getColor(requireContext(), R.color.woo_yellow_30),
                     PorterDuff.Mode.SRC_ATOP
             )
         }

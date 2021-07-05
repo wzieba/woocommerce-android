@@ -1,10 +1,5 @@
 package com.woocommerce.android.extensions
 
-import android.text.Spannable
-import android.text.SpannableString
-import android.text.method.LinkMovementMethod
-import android.widget.TextView
-import com.woocommerce.android.widgets.WooClickableSpan
 import org.apache.commons.text.StringEscapeUtils
 
 /**
@@ -64,33 +59,21 @@ fun String.fastStripHtml(): String {
     return htmlString.substring(start)
 }
 
-/**
- * Makes any text range inside a TextView clickable with a special color and a URL redirection
- */
-fun String.configureStringClick(
-    clickableContent: String,
-    clickAction: WooClickableSpan,
-    textField: TextView
-) {
-    SpannableString(this)
-        .buildClickableUrlSpan(clickableContent, this, clickAction)
-        .let {
-            textField.apply {
-                setText(it, TextView.BufferType.SPANNABLE)
-                movementMethod = LinkMovementMethod.getInstance()
+fun String.semverCompareTo(otherVersion: String): Int {
+    try {
+        val thisVersionTokens = substringBefore("-").split(".").map { Integer.parseInt(it) }
+        val otherVersionTokens = otherVersion.substringBefore("-").split(".").map { Integer.parseInt(it) }
+
+        thisVersionTokens.forEachIndexed { index, token ->
+            if (token > otherVersionTokens[index]) {
+                return 1
+            } else if (token < otherVersionTokens[index]) {
+                return -1
             }
         }
-}
-
-private fun SpannableString.buildClickableUrlSpan(
-    clickableContent: String,
-    fullContent: String,
-    clickAction: WooClickableSpan
-) = apply {
-    setSpan(
-        clickAction,
-        (fullContent.length - clickableContent.length),
-        fullContent.length,
-        Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
-    )
+        return 0
+    } catch (e: NumberFormatException) {
+        // if the parsing fails, consider this version lower than the other one
+        return -1
+    }
 }

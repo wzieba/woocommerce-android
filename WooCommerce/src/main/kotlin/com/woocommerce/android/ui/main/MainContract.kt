@@ -16,6 +16,7 @@ interface MainContract {
         fun selectedSiteChanged(site: SiteModel)
         fun fetchUnfilledOrderCount()
         fun fetchSitesAfterDowngrade()
+        fun isUserEligible(): Boolean
     }
 
     interface View : BaseView<Presenter>, TopLevelFragmentRouter {
@@ -32,8 +33,8 @@ interface MainContract {
         fun hideOrderBadge()
         fun showOrderBadge(count: Int)
         fun updateOrderBadge(hideCountUntilComplete: Boolean)
-        fun fetchRevenueStatsAvailability(site: SiteModel)
         fun hideProgressDialog()
         fun showProgressDialog(@StringRes stringId: Int)
+        fun showUserEligibilityErrorScreen()
     }
 }

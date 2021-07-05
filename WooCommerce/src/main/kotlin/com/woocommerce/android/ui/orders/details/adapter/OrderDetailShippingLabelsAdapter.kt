@@ -34,6 +34,7 @@ class OrderDetailShippingLabelsAdapter(
     interface OnShippingLabelClickListener {
         fun onRefundRequested(shippingLabel: ShippingLabel)
         fun onPrintShippingLabelClicked(shippingLabel: ShippingLabel)
+        fun onPrintCustomsFormClicked(shippingLabel: ShippingLabel)
     }
 
     var shippingLabels: List<ShippingLabel> = ArrayList()
@@ -115,11 +116,27 @@ class OrderDetailShippingLabelsAdapter(
                 return
             }
 
+            // Set up the collapsible button to show/hide the products list.
+            viewBinding.shippingLabelListCountButtonTitle.text = viewBinding.root.resources.getQuantityString(
+                R.plurals.shipping_label_package_details_items_count,
+                shippingLabel.products.count(),
+                shippingLabel.products.count()
+            )
+            viewBinding.shippingLabelListViewItems.setOnClickListener {
+                val isChecked = viewBinding.shippingLabelListCountButtonImage.rotation == 0F
+                if (isChecked) {
+                    viewBinding.shippingLabelListProducts.expand()
+                    viewBinding.shippingLabelListCountButtonImage.animate().rotation(180F).setDuration(200).start()
+                } else {
+                    viewBinding.shippingLabelListProducts.collapse()
+                    viewBinding.shippingLabelListCountButtonImage.animate().rotation(0F).setDuration(200).start()
+                }
+            }
+
             // display tracking number details if shipping label is not refunded
             val isRefunded = shippingLabel.refund == null
             viewBinding.shippingLabelListBtnMenu.isVisible = isRefunded
             viewBinding.shippingLabelListPrintBtn.isVisible = isRefunded
-            viewBinding.shippingLabelListProducts.isVisible = isRefunded
             with(viewBinding.shippingLabelItemTrackingNumber) {
                 if (shippingLabel.refund != null) {
                     setShippingLabelTitle(
@@ -229,6 +246,14 @@ class OrderDetailShippingLabelsAdapter(
                 listener.onRefundRequested(shippingLabel)
                 true
             }
+            popup.menu.findItem(R.id.menu_print_customs_form).apply {
+                isVisible = shippingLabel.hasCommercialInvoice
+                setOnMenuItemClickListener {
+                    listener.onPrintCustomsFormClicked(shippingLabel)
+                    true
+                }
+            }
+
             popup.show()
         }
     }

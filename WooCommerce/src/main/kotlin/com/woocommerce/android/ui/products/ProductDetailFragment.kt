@@ -16,6 +16,7 @@ import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.recyclerview.widget.RecyclerView.LayoutManager
+import com.automattic.android.tracks.crashlogging.CrashLogging
 import com.woocommerce.android.R
 import com.woocommerce.android.RequestCodes
 import com.woocommerce.android.analytics.AnalyticsTracker
@@ -37,18 +38,23 @@ import com.woocommerce.android.ui.products.ProductInventoryViewModel.InventoryDa
 import com.woocommerce.android.ui.products.ProductNavigationTarget.ViewProductDetailBottomSheet
 import com.woocommerce.android.ui.products.ProductPricingViewModel.PricingData
 import com.woocommerce.android.ui.products.ProductShippingViewModel.ShippingData
+import com.woocommerce.android.ui.products.ProductTypesBottomSheetViewModel.ProductTypesBottomSheetUiItem
 import com.woocommerce.android.ui.products.adapters.ProductPropertyCardsAdapter
 import com.woocommerce.android.ui.products.models.ProductPropertyCard
+import com.woocommerce.android.ui.products.variations.VariationListFragment
+import com.woocommerce.android.ui.products.variations.VariationListViewModel.VariationListData
 import com.woocommerce.android.ui.wpmediapicker.WPMediaPickerFragment
 import com.woocommerce.android.util.ChromeCustomTabUtils
-import com.woocommerce.android.util.CrashUtils
 import com.woocommerce.android.viewmodel.MultiLiveEvent.Event.ExitWithResult
 import com.woocommerce.android.viewmodel.MultiLiveEvent.Event.LaunchUrlInChromeTab
 import com.woocommerce.android.widgets.CustomProgressDialog
 import com.woocommerce.android.widgets.SkeletonView
 import com.woocommerce.android.widgets.WCProductImageGalleryView.OnGalleryImageInteractionListener
+import dagger.hilt.android.AndroidEntryPoint
 import org.wordpress.android.util.ActivityUtils
+import javax.inject.Inject
 
+@AndroidEntryPoint
 class ProductDetailFragment : BaseProductFragment(R.layout.fragment_product_detail),
     OnGalleryImageInteractionListener {
     companion object {
@@ -78,6 +84,8 @@ class ProductDetailFragment : BaseProductFragment(R.layout.fragment_product_deta
 
     private var _binding: FragmentProductDetailBinding? = null
     private val binding get() = _binding!!
+
+    @Inject lateinit var crashLogging: CrashLogging
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
@@ -127,8 +135,8 @@ class ProductDetailFragment : BaseProductFragment(R.layout.fragment_product_deta
     }
 
     private fun setupResultHandlers(viewModel: ProductDetailViewModel) {
-        handleResult<ProductType>(ProductTypesBottomSheetFragment.KEY_PRODUCT_TYPE_RESULT) {
-            viewModel.updateProductDraft(type = it.value)
+        handleResult<ProductTypesBottomSheetUiItem>(ProductTypesBottomSheetFragment.KEY_PRODUCT_TYPE_RESULT) {
+            viewModel.updateProductDraft(type = it.type.value, isVirtual = it.isVirtual)
             changesMade()
         }
         handleResult<List<Long>>(GroupedProductListType.GROUPED.resultKey) {
@@ -192,6 +200,10 @@ class ProductDetailFragment : BaseProductFragment(R.layout.fragment_product_deta
                 }
             }
             changesMade()
+        }
+
+        handleResult<VariationListData>(VariationListFragment.KEY_VARIATION_LIST_RESULT) { data ->
+            data.currentVariationAmount?.let { viewModel.onVariationAmountReceived(it) }
         }
     }
 
@@ -261,9 +273,11 @@ class ProductDetailFragment : BaseProductFragment(R.layout.fragment_product_deta
 
         // show status badge for unpublished products
         product.status?.let { status ->
-            if (status != ProductStatus.PUBLISH) {
+            if (status != ProductStatus.PUBLISH && viewModel.isAddFlowEntryPoint.not()) {
                 binding.frameStatusBadge.show()
                 binding.textStatusBadge.text = status.toLocalizedString(requireActivity())
+            } else {
+                binding.frameStatusBadge.hide()
             }
         }
 
@@ -278,7 +292,7 @@ class ProductDetailFragment : BaseProductFragment(R.layout.fragment_product_deta
     }
 
     private fun updateProductNameFromDetails(product: Product): String {
-        return if (viewModel.isAddFlow && product.name.isEmpty()) {
+        return if (viewModel.isProductUnderCreation && product.name.isEmpty()) {
             getString(R.string.product_add_tool_bar_title)
         } else product.name.fastStripHtml()
     }
@@ -314,16 +328,19 @@ class ProductDetailFragment : BaseProductFragment(R.layout.fragment_product_deta
         // TODO: remove the null checks once the root cause is identified is fixed
         if (menu.findItem(R.id.menu_view_product) == null) {
             val message = """menu.findItem(R.id.menu_view_product) is null
-                |User is ${if (viewModel.isAddFlow) "creating a product" else "modifying a product"}
+                |User is ${if (viewModel.isProductUnderCreation) "creating a product" else "modifying a product"}
                 |menu elements:
                 |${menu.printItems()}
             """.trimMargin()
-            CrashUtils.logException(NullPointerException(message))
+            crashLogging.sendReport(exception = NullPointerException(message))
         }
 
         // visibility of these menu items depends on whether we're in the add product flow
-        menu.findItem(R.id.menu_view_product)?.isVisible = viewModel.isProductPublished && !viewModel.isAddFlow
-        menu.findItem(R.id.menu_share)?.isVisible = !viewModel.isAddFlow
+        menu.findItem(R.id.menu_view_product)?.isVisible =
+            viewModel.isProductPublished &&
+                !viewModel.isProductUnderCreation
+
+        menu.findItem(R.id.menu_share)?.isVisible = !viewModel.isProductUnderCreation
         menu.findItem(R.id.menu_product_settings)?.isVisible = true
 
         // change the font color of the trash menu item to red, and only show it if it should be enabled
@@ -331,15 +348,15 @@ class ProductDetailFragment : BaseProductFragment(R.layout.fragment_product_deta
             if (this == null) return@with
             val title = SpannableString(this.title)
             title.setSpan(ForegroundColorSpan(Color.RED), 0, title.length, 0)
-            this.setTitle(title)
+            this.title = title
             this.isVisible = viewModel.isTrashEnabled
         }
 
-        menu.findItem(R.id.menu_save_as_draft)?.isVisible = viewModel.isAddFlow && viewModel.hasChanges()
+        menu.findItem(R.id.menu_save_as_draft)?.isVisible = viewModel.canBeStoredAsDraft && viewModel.hasChanges()
 
         updateMenuItem?.let {
-            it.title = if (viewModel.isAddFlow) getString(publishTitleId) else getString(updateTitleId)
-            it.isVisible = viewModel.hasChanges()
+            it.title = if (viewModel.isAddFlowEntryPoint) getString(publishTitleId) else getString(updateTitleId)
+            it.isVisible = viewModel.hasChanges() or viewModel.isProductUnderCreation
         }
     }
 
@@ -408,7 +425,7 @@ class ProductDetailFragment : BaseProductFragment(R.layout.fragment_product_deta
     private fun getSubmitDetailProgressDialog(): CustomProgressDialog {
         val title: Int
         val message: Int
-        when (viewModel.isAddFlow) {
+        when (viewModel.isProductUnderCreation) {
             true -> {
                 title = if (viewModel.isDraftProduct()) {
                     R.string.product_publish_draft_dialog_title

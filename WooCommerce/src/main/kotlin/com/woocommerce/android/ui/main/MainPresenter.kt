@@ -1,5 +1,6 @@
 package com.woocommerce.android.ui.main
 
+import com.woocommerce.android.AppPrefs
 import com.woocommerce.android.R
 import com.woocommerce.android.analytics.AnalyticsTracker
 import com.woocommerce.android.analytics.AnalyticsTracker.Stat
@@ -33,10 +34,10 @@ import org.wordpress.android.fluxc.store.AccountStore.OnAuthenticationChanged
 import org.wordpress.android.fluxc.store.AccountStore.UpdateTokenPayload
 import org.wordpress.android.fluxc.store.NotificationStore
 import org.wordpress.android.fluxc.store.SiteStore
+import org.wordpress.android.fluxc.store.SiteStore.FetchSitesPayload
 import org.wordpress.android.fluxc.store.SiteStore.OnSiteChanged
 import org.wordpress.android.fluxc.store.WCOrderStore.FetchOrderStatusOptionsPayload
 import org.wordpress.android.fluxc.store.WCOrderStore.FetchOrdersCountPayload
-import org.wordpress.android.fluxc.store.WCOrderStore.FetchOrdersPayload
 import org.wordpress.android.fluxc.store.WCOrderStore.OnOrderChanged
 import org.wordpress.android.fluxc.store.WCProductStore
 import org.wordpress.android.fluxc.store.WooCommerceStore
@@ -49,7 +50,8 @@ class MainPresenter @Inject constructor(
     private val wooCommerceStore: WooCommerceStore,
     private val notificationStore: NotificationStore,
     private val selectedSite: SelectedSite,
-    private val productImageMap: ProductImageMap
+    private val productImageMap: ProductImageMap,
+    private val appPrefs: AppPrefs
 ) : MainContract.Presenter {
     private var mainView: MainContract.View? = null
 
@@ -105,8 +107,10 @@ class MainPresenter @Inject constructor(
     override fun fetchSitesAfterDowngrade() {
         isFetchingSitesAfterDowngrade = true
         mainView?.showProgressDialog(R.string.loading_stores)
-        dispatcher.dispatch(SiteActionBuilder.newFetchSitesAction())
+        dispatcher.dispatch(SiteActionBuilder.newFetchSitesAction(FetchSitesPayload()))
     }
+
+    override fun isUserEligible() = appPrefs.isUserEligible()
 
     @Suppress("unused")
     @Subscribe(threadMode = ThreadMode.MAIN)
@@ -143,7 +147,7 @@ class MainPresenter @Inject constructor(
                 dispatcher.dispatch(AccountActionBuilder.newFetchSettingsAction())
             } else if (event.causeOfChange == AccountAction.FETCH_SETTINGS) {
                 // The user's account settings have also been fetched and stored - now we can fetch the user's sites
-                dispatcher.dispatch(SiteActionBuilder.newFetchSitesAction())
+                dispatcher.dispatch(SiteActionBuilder.newFetchSitesAction(FetchSitesPayload()))
             }
         }
     }
@@ -223,11 +227,9 @@ class MainPresenter @Inject constructor(
     @Suppress("unused")
     @Subscribe(threadMode = ThreadMode.MAIN)
     fun onEventMainThread(event: NotificationReceivedEvent) {
-        // a new order notification came in so update the unfilled order count and fetch the order list
+        // a new order notification came in so update the unfilled order count
         if (event.channel == NEW_ORDER) {
             fetchUnfilledOrderCount()
-            val payload = FetchOrdersPayload(selectedSite.get())
-            dispatcher.dispatch(WCOrderActionBuilder.newFetchOrdersAction(payload))
         }
     }
 

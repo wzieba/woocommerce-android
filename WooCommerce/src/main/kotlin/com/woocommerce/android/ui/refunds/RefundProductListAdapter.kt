@@ -18,7 +18,7 @@ import com.woocommerce.android.extensions.show
 import com.woocommerce.android.model.Order
 import com.woocommerce.android.tools.ProductImageMap
 import com.woocommerce.android.ui.refunds.RefundProductListAdapter.RefundViewHolder
-import kotlinx.android.parcel.Parcelize
+import kotlinx.parcelize.Parcelize
 import org.wordpress.android.fluxc.model.refunds.WCRefundModel.WCRefundItem
 import org.wordpress.android.util.PhotonUtils
 import java.math.BigDecimal
@@ -30,13 +30,14 @@ class RefundProductListAdapter(
     private val isProductDetailList: Boolean,
     private val onItemClicked: (Long) -> Unit = { }
 ) : RecyclerView.Adapter<RefundViewHolder>() {
-    private var items = mutableListOf<RefundListItem>()
+    private var items = mutableListOf<ProductRefundListItem>()
 
     override fun onCreateViewHolder(parent: ViewGroup, itemType: Int): RefundViewHolder {
-        return if (isProductDetailList)
+        return if (isProductDetailList) {
             RefundDetailViewHolder(parent, formatCurrency, imageMap)
-        else
+        } else {
             IssueRefundViewHolder(parent, formatCurrency, onItemClicked, imageMap)
+        }
     }
 
     override fun onBindViewHolder(holder: RefundViewHolder, position: Int) {
@@ -45,7 +46,7 @@ class RefundProductListAdapter(
 
     override fun getItemCount(): Int = items.size
 
-    fun update(newItems: List<RefundListItem>) {
+    fun update(newItems: List<ProductRefundListItem>) {
         val diffResult = DiffUtil.calculateDiff(OrderItemDiffCallback(items, newItems))
         items = newItems.toMutableList()
         diffResult.dispatchUpdatesTo(this)
@@ -54,7 +55,7 @@ class RefundProductListAdapter(
     abstract class RefundViewHolder(parent: ViewGroup, @LayoutRes layout: Int) : RecyclerView.ViewHolder(
             LayoutInflater.from(parent.context).inflate(layout, parent, false)
     ) {
-        abstract fun bind(item: RefundListItem)
+        abstract fun bind(item: ProductRefundListItem)
     }
 
     class RefundDetailViewHolder(
@@ -69,7 +70,7 @@ class RefundProductListAdapter(
         private val productImageView: ImageView = itemView.findViewById(R.id.refundItem_icon)
 
         @SuppressLint("SetTextI18n")
-        override fun bind(item: RefundListItem) {
+        override fun bind(item: ProductRefundListItem) {
             nameTextView.text = item.orderItem.name
 
             if (item.orderItem.sku.isBlank()) {
@@ -116,7 +117,7 @@ class RefundProductListAdapter(
         private val productImageView: ImageView = itemView.findViewById(R.id.refundItem_icon)
 
         @SuppressLint("SetTextI18n")
-        override fun bind(item: RefundListItem) {
+        override fun bind(item: ProductRefundListItem) {
             nameTextView.text = item.orderItem.name
 
             descriptionTextView.text = itemView.context.getString(
@@ -127,7 +128,7 @@ class RefundProductListAdapter(
 
             quantityTextView.text = item.quantity.toString()
             quantityTextView.setOnClickListener {
-                onItemClicked(item.orderItem.uniqueId)
+                onItemClicked(item.orderItem.itemId)
             }
 
             imageMap.get(item.orderItem.productId)?.let {
@@ -142,7 +143,7 @@ class RefundProductListAdapter(
     }
 
     @Parcelize
-    data class RefundListItem(
+    data class ProductRefundListItem(
         val orderItem: Order.Item,
         val maxQuantity: Int = 0,
         val quantity: Int = 0
@@ -159,11 +160,11 @@ class RefundProductListAdapter(
     }
 
     class OrderItemDiffCallback(
-        private val oldList: List<RefundListItem>,
-        private val newList: List<RefundListItem>
+        private val oldList: List<ProductRefundListItem>,
+        private val newList: List<ProductRefundListItem>
     ) : Callback() {
         override fun areItemsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean {
-            return oldList[oldItemPosition].orderItem.uniqueId == newList[newItemPosition].orderItem.uniqueId
+            return oldList[oldItemPosition].orderItem.itemId == newList[newItemPosition].orderItem.itemId
         }
 
         override fun getOldListSize(): Int = oldList.size

@@ -1,6 +1,5 @@
 package com.woocommerce.android.ui.mystore
 
-import android.content.Context
 import android.os.Bundle
 import android.view.Menu
 import android.view.MenuInflater
@@ -8,6 +7,7 @@ import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup.LayoutParams
 import androidx.core.view.children
+import com.automattic.android.tracks.crashlogging.CrashLogging
 import com.google.android.material.appbar.AppBarLayout
 import com.google.android.material.snackbar.Snackbar
 import com.google.android.material.tabs.TabLayout
@@ -16,10 +16,11 @@ import com.woocommerce.android.AppPrefs
 import com.woocommerce.android.FeedbackPrefs
 import com.woocommerce.android.FeedbackPrefs.userFeedbackIsDue
 import com.woocommerce.android.R
+import com.woocommerce.android.R.attr
 import com.woocommerce.android.analytics.AnalyticsTracker
 import com.woocommerce.android.analytics.AnalyticsTracker.Stat
 import com.woocommerce.android.databinding.FragmentMyStoreBinding
-import com.woocommerce.android.extensions.configureStringClick
+import com.woocommerce.android.extensions.setClickableText
 import com.woocommerce.android.extensions.startHelpActivity
 import com.woocommerce.android.support.HelpActivity.Origin
 import com.woocommerce.android.tools.SelectedSite
@@ -29,11 +30,12 @@ import com.woocommerce.android.ui.base.UIMessageResolver
 import com.woocommerce.android.ui.main.MainNavigationRouter
 import com.woocommerce.android.util.ActivityUtils
 import com.woocommerce.android.util.CurrencyFormatter
+import com.woocommerce.android.util.DateUtils
 import com.woocommerce.android.util.WooAnimUtils
 import com.woocommerce.android.util.WooLog
 import com.woocommerce.android.widgets.WCEmptyView.EmptyViewType
 import com.woocommerce.android.widgets.WooClickableSpan
-import dagger.android.support.AndroidSupportInjection
+import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import org.wordpress.android.fluxc.model.WCRevenueStatsModel
 import org.wordpress.android.fluxc.model.leaderboards.WCTopPerformerProductModel
@@ -42,6 +44,7 @@ import org.wordpress.android.util.NetworkUtils
 import java.util.Calendar
 import javax.inject.Inject
 
+@AndroidEntryPoint
 class MyStoreFragment : TopLevelFragment(R.layout.fragment_my_store),
     MyStoreContract.View,
     MyStoreStatsListener {
@@ -58,6 +61,8 @@ class MyStoreFragment : TopLevelFragment(R.layout.fragment_my_store),
     @Inject lateinit var selectedSite: SelectedSite
     @Inject lateinit var currencyFormatter: CurrencyFormatter
     @Inject lateinit var uiMessageResolver: UIMessageResolver
+    @Inject lateinit var dateUtils: DateUtils
+    @Inject lateinit var crashLogging: CrashLogging
 
     private val binding by viewBinding(FragmentMyStoreBinding::bind)
 
@@ -83,7 +88,7 @@ class MyStoreFragment : TopLevelFragment(R.layout.fragment_my_store),
         get() = activity as? MainNavigationRouter
 
     private val myStoreDateBar
-        get() = binding.myStoreStats.myStoreDateBar
+        get() = binding.myStoreDateBar
 
     private var isEmptyViewVisible: Boolean = false
 
@@ -100,17 +105,11 @@ class MyStoreFragment : TopLevelFragment(R.layout.fragment_my_store),
         override fun onTabReselected(tab: TabLayout.Tab) {}
     }
 
-    override fun onAttach(context: Context) {
-        AndroidSupportInjection.inject(this)
-        super.onAttach(context)
-    }
-
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         setHasOptionsMenu(true)
 
-        _tabLayout = TabLayout(requireContext(), null, R.attr.scrollableTabStyle)
-        addTabLayoutToAppBar()
+        initTabLayout()
 
         binding.myStoreRefreshLayout.setOnRefreshListener {
             // Track the user gesture
@@ -145,13 +144,14 @@ class MyStoreFragment : TopLevelFragment(R.layout.fragment_my_store),
             }
         }
 
-        myStoreDateBar.initView()
+        myStoreDateBar.initView(dateUtils)
 
         binding.myStoreStats.initView(
             activeGranularity,
             listener = this,
             selectedSite = selectedSite,
-            formatCurrencyForDisplay = currencyFormatter::formatCurrencyRounded
+            formatCurrencyForDisplay = currencyFormatter::formatCurrencyRounded,
+            dateUtils = dateUtils
         )
 
         binding.myStoreTopPerformers.initView(
@@ -162,16 +162,20 @@ class MyStoreFragment : TopLevelFragment(R.layout.fragment_my_store),
         )
 
         val contactUsText = getString(R.string.my_store_stats_availability_contact_us)
-        getString(R.string.my_store_stats_availability_description, contactUsText)
-            .configureStringClick(
-                clickableContent = contactUsText,
-                clickAction = WooClickableSpan { activity?.startHelpActivity(Origin.MY_STORE) },
-                textField = binding.myStoreStatsAvailabilityMessage
-            )
+        binding.myStoreStatsAvailabilityMessage.setClickableText(
+            content = getString(R.string.my_store_stats_availability_description, contactUsText),
+            clickableContent = contactUsText,
+            clickAction = WooClickableSpan { activity?.startHelpActivity(Origin.MY_STORE) }
+        )
 
         tabLayout.addOnTabSelectedListener(tabSelectedListener)
 
         refreshMyStoreStats(forced = this.isRefreshPending)
+    }
+
+    private fun initTabLayout() {
+        _tabLayout = TabLayout(requireContext(), null, attr.scrollableTabStyle)
+        addTabLayoutToAppBar()
     }
 
     override fun onResume() {
@@ -283,16 +287,9 @@ class MyStoreFragment : TopLevelFragment(R.layout.fragment_my_store),
         }
     }
 
-    override fun getFragmentTitle(): String {
-        selectedSite.getIfExists()?.let { site ->
-            if (!site.displayName.isNullOrBlank()) {
-                return site.displayName
-            } else if (!site.name.isNullOrBlank()) {
-                return site.name
-            }
-        }
-        return getString(R.string.my_store)
-    }
+    override fun getFragmentTitle() = getString(R.string.my_store)
+
+    override fun getFragmentSubtitle(): String = presenter.getSelectedSiteName() ?: ""
 
     override fun scrollToTop() {
         binding.statsScrollView.smoothScrollTo(0, 0)

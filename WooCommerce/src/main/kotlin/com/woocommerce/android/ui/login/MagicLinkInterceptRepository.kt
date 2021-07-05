@@ -9,10 +9,11 @@ import com.woocommerce.android.model.RequestResult.ERROR
 import com.woocommerce.android.model.RequestResult.NO_ACTION_NEEDED
 import com.woocommerce.android.model.RequestResult.RETRY
 import com.woocommerce.android.model.RequestResult.SUCCESS
+import com.woocommerce.android.util.ContinuationWrapper
+import com.woocommerce.android.util.ContinuationWrapper.ContinuationResult.Cancellation
+import com.woocommerce.android.util.ContinuationWrapper.ContinuationResult.Success
 import com.woocommerce.android.util.WooLog
 import com.woocommerce.android.util.WooLog.T.LOGIN
-import com.woocommerce.android.util.suspendCoroutineWithTimeout
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import org.greenrobot.eventbus.Subscribe
@@ -26,11 +27,10 @@ import org.wordpress.android.fluxc.store.AccountStore.AccountErrorType
 import org.wordpress.android.fluxc.store.AccountStore.OnAccountChanged
 import org.wordpress.android.fluxc.store.AccountStore.OnAuthenticationChanged
 import org.wordpress.android.fluxc.store.AccountStore.UpdateTokenPayload
+import org.wordpress.android.fluxc.store.SiteStore.FetchSitesPayload
 import org.wordpress.android.fluxc.store.SiteStore.OnSiteChanged
 import org.wordpress.android.login.LoginAnalyticsListener
 import javax.inject.Inject
-import kotlin.coroutines.Continuation
-import kotlin.coroutines.resume
 
 class MagicLinkInterceptRepository @Inject constructor(
     private val dispatcher: Dispatcher,
@@ -39,10 +39,10 @@ class MagicLinkInterceptRepository @Inject constructor(
 ) {
     private var isHandlingMagicLink: Boolean = false
 
-    private var continuationUpdateToken: Continuation<Boolean>? = null
-    private var continuationFetchAccount: Continuation<Boolean>? = null
-    private var continuationFetchAccountSettings: Continuation<Boolean>? = null
-    private var continuationFetchSites: Continuation<Boolean>? = null
+    private var continuationUpdateToken = ContinuationWrapper<Boolean>(LOGIN)
+    private var continuationFetchAccount = ContinuationWrapper<Boolean>(LOGIN)
+    private var continuationFetchAccountSettings = ContinuationWrapper<Boolean>(LOGIN)
+    private var continuationFetchSites = ContinuationWrapper<Boolean>(LOGIN)
 
     init {
         dispatcher.register(this)
@@ -123,15 +123,12 @@ class MagicLinkInterceptRepository @Inject constructor(
      * @return the result of the action as a [Boolean]
      */
     private suspend fun storeMagicLinkToken(token: String): Boolean {
-        return try {
-            suspendCoroutineWithTimeout<Boolean>(AppConstants.REQUEST_TIMEOUT) {
-                continuationUpdateToken = it
-
-                dispatcher.dispatch(AccountActionBuilder.newUpdateAccessTokenAction(UpdateTokenPayload(token)))
-            } ?: false // request timed out
-        } catch (e: CancellationException) {
-            WooLog.e(LOGIN, "Exception encountered while updating magic link auth token", e)
-            false
+        val result = continuationUpdateToken.callAndWaitUntilTimeout(AppConstants.REQUEST_TIMEOUT) {
+            dispatcher.dispatch(AccountActionBuilder.newUpdateAccessTokenAction(UpdateTokenPayload(token)))
+        }
+        return when (result) {
+            is Cancellation -> false
+            is Success -> result.value
         }
     }
 
@@ -141,15 +138,12 @@ class MagicLinkInterceptRepository @Inject constructor(
      * @return the result of the action as a [Boolean]
      */
     private suspend fun fetchAccount(): Boolean {
-        return try {
-            suspendCoroutineWithTimeout<Boolean>(AppConstants.REQUEST_TIMEOUT) {
-                continuationFetchAccount = it
-
-                dispatcher.dispatch(AccountActionBuilder.newFetchAccountAction())
-            } ?: false // request timed out
-        } catch (e: CancellationException) {
-            WooLog.e(LOGIN, "Exception encountered while fetching account info", e)
-            false
+        val result = continuationFetchAccount.callAndWaitUntilTimeout(AppConstants.REQUEST_TIMEOUT) {
+            dispatcher.dispatch(AccountActionBuilder.newFetchAccountAction())
+        }
+        return when (result) {
+            is Cancellation -> false
+            is Success -> result.value
         }
     }
 
@@ -159,15 +153,12 @@ class MagicLinkInterceptRepository @Inject constructor(
      * @return the result of the action as a [Boolean]
      */
     private suspend fun fetchAccountSettings(): Boolean {
-        return try {
-            suspendCoroutineWithTimeout<Boolean>(AppConstants.REQUEST_TIMEOUT) {
-                continuationFetchAccountSettings = it
-
-                dispatcher.dispatch(AccountActionBuilder.newFetchSettingsAction())
-            } ?: false // request timed out
-        } catch (e: CancellationException) {
-            WooLog.e(LOGIN, "Exception encountered while fetching account settings", e)
-            false
+        val result = continuationFetchAccountSettings.callAndWaitUntilTimeout(AppConstants.REQUEST_TIMEOUT) {
+            dispatcher.dispatch(AccountActionBuilder.newFetchSettingsAction())
+        }
+        return when (result) {
+            is Cancellation -> false
+            is Success -> result.value
         }
     }
 
@@ -177,15 +168,12 @@ class MagicLinkInterceptRepository @Inject constructor(
      * @return the result of the action as a [Boolean]
      */
     private suspend fun fetchSites(): Boolean {
-        return try {
-            suspendCoroutineWithTimeout<Boolean>(AppConstants.REQUEST_TIMEOUT) {
-                continuationFetchSites = it
-
-                dispatcher.dispatch(SiteActionBuilder.newFetchSitesAction())
-            } ?: false // request timed out
-        } catch (e: CancellationException) {
-            WooLog.e(LOGIN, "Exception encountered while fetching sites", e)
-            false
+        val result = continuationFetchSites.callAndWaitUntilTimeout(AppConstants.REQUEST_TIMEOUT) {
+            dispatcher.dispatch(SiteActionBuilder.newFetchSitesAction(FetchSitesPayload()))
+        }
+        return when (result) {
+            is Cancellation -> false
+            is Success -> result.value
         }
     }
 
@@ -199,11 +187,10 @@ class MagicLinkInterceptRepository @Inject constructor(
                     AnalyticsTracker.KEY_ERROR_TYPE to event.error?.type?.toString(),
                     AnalyticsTracker.KEY_ERROR_DESC to event.error?.message))
 
-            continuationUpdateToken?.resume(false)
+            continuationUpdateToken.continueWith(false)
         } else {
-            continuationUpdateToken?.resume(true)
+            continuationUpdateToken.continueWith(true)
         }
-        continuationUpdateToken = null
     }
 
     @Suppress("unused")
@@ -228,14 +215,12 @@ class MagicLinkInterceptRepository @Inject constructor(
                 event.causeOfChange == AccountAction.FETCH_ACCOUNT -> {
                     // The user's account info has been fetched and stored - next, fetch the user's settings
                     AnalyticsTracker.track(Stat.LOGIN_MAGIC_LINK_FETCH_ACCOUNT_SUCCESS)
-                    continuationFetchAccount?.resume(!event.isError)
-                    continuationFetchAccount = null
+                    continuationFetchAccount.continueWith(!event.isError)
                 }
                 event.causeOfChange == AccountAction.FETCH_SETTINGS -> {
                     // The user's account settings have also been fetched and stored - now we can fetch the user's sites
                     AnalyticsTracker.track(Stat.LOGIN_MAGIC_LINK_FETCH_ACCOUNT_SETTINGS_SUCCESS)
-                    continuationFetchAccountSettings?.resume(!event.isError)
-                    continuationFetchAccountSettings = null
+                    continuationFetchAccountSettings.continueWith(!event.isError)
                 }
             }
         }
@@ -250,12 +235,11 @@ class MagicLinkInterceptRepository @Inject constructor(
                     AnalyticsTracker.KEY_ERROR_TYPE to event.error?.type?.toString(),
                     AnalyticsTracker.KEY_ERROR_DESC to event.error?.message))
 
-            continuationFetchSites?.resume(false)
+            continuationFetchSites.continueWith(false)
         } else {
             AnalyticsTracker.track(Stat.LOGIN_MAGIC_LINK_FETCH_SITES_SUCCESS)
-            continuationFetchSites?.resume(true)
+            continuationFetchSites.continueWith(true)
         }
         isHandlingMagicLink = false
-        continuationFetchSites = null
     }
 }

@@ -2,19 +2,23 @@ package com.woocommerce.android.ui.orders.shippinglabels
 
 import com.woocommerce.android.annotations.OpenClassOnDebug
 import com.woocommerce.android.model.Address
+import com.woocommerce.android.model.CustomsPackage
 import com.woocommerce.android.model.Order
 import com.woocommerce.android.model.ShippingAccountSettings
 import com.woocommerce.android.model.ShippingLabel
 import com.woocommerce.android.model.ShippingLabelPackage
 import com.woocommerce.android.model.ShippingPackage
+import com.woocommerce.android.model.ShippingRate
 import com.woocommerce.android.model.toAppModel
 import com.woocommerce.android.tools.SelectedSite
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.wordpress.android.fluxc.model.shippinglabels.WCShippingLabelModel
+import org.wordpress.android.fluxc.model.shippinglabels.WCShippingLabelPackageData
 import org.wordpress.android.fluxc.model.shippinglabels.WCShippingRatesResult
 import org.wordpress.android.fluxc.network.BaseRequest.GenericErrorType
 import org.wordpress.android.fluxc.network.BaseRequest.GenericErrorType.NOT_FOUND
+import org.wordpress.android.fluxc.network.BaseRequest.GenericErrorType.UNKNOWN
 import org.wordpress.android.fluxc.network.rest.wpcom.wc.WooError
 import org.wordpress.android.fluxc.network.rest.wpcom.wc.WooErrorType.GENERIC_ERROR
 import org.wordpress.android.fluxc.network.rest.wpcom.wc.WooErrorType.INVALID_RESPONSE
@@ -86,25 +90,27 @@ class ShippingLabelRepository @Inject constructor(
         order: Order,
         origin: Address,
         destination: Address,
-        packages: List<ShippingLabelPackage>
+        packages: List<ShippingLabelPackage>,
+        customsPackages: List<CustomsPackage>?
     ): WooResult<List<WCShippingRatesResult.ShippingPackage>> {
         val carrierRates = shippingLabelStore.getShippingRates(
-            selectedSite.get(),
-            order.remoteId,
-            origin.toShippingLabelModel(),
-            destination.toShippingLabelModel(),
-            packages.mapIndexed { i, box ->
+            site = selectedSite.get(),
+            orderId = order.remoteId,
+            origin = origin.toShippingLabelModel(),
+            destination = destination.toShippingLabelModel(),
+            packages = packages.mapIndexed { i, box ->
                 val pack = requireNotNull(box.selectedPackage)
                 WCShippingLabelModel.ShippingLabelPackage(
-                    id = "package$i",
+                    id = box.packageId,
                     boxId = pack.id,
-                    height = pack.dimensions.height.toFloat(),
-                    width = pack.dimensions.width.toFloat(),
-                    length = pack.dimensions.length.toFloat(),
-                    weight = box.weight.toFloat(),
+                    height = pack.dimensions.height,
+                    width = pack.dimensions.width,
+                    length = pack.dimensions.length,
+                    weight = box.weight,
                     isLetter = pack.isLetter
                 )
-            }
+            },
+            customsData = customsPackages?.map { it.toDataModel() }
         )
 
         return when {
@@ -127,7 +133,8 @@ class ShippingLabelRepository @Inject constructor(
         }
     }
 
-    suspend fun getAccountSettings(): WooResult<ShippingAccountSettings> {
+    suspend fun getAccountSettings(forceRefresh: Boolean = false): WooResult<ShippingAccountSettings> {
+        if (forceRefresh) accountSettings = null
         return accountSettings?.let { WooResult(it) } ?: shippingLabelStore.getAccountSettings(selectedSite.get())
             .let { result ->
                 if (result.isError) return@let WooResult<ShippingAccountSettings>(error = result.error)
@@ -147,6 +154,53 @@ class ShippingLabelRepository @Inject constructor(
 
             accountSettings = null
             WooResult(Unit)
+        }
+    }
+
+    suspend fun purchaseLabels(
+        orderId: Long,
+        origin: Address,
+        destination: Address,
+        packages: List<ShippingLabelPackage>,
+        rates: List<ShippingRate>,
+        customsPackages: List<CustomsPackage>?
+    ): WooResult<List<ShippingLabel>> {
+        val packagesData = packages.mapIndexed { i, labelPackage ->
+            val rate = rates.first { it.packageId == labelPackage.packageId }
+            WCShippingLabelPackageData(
+                id = labelPackage.packageId,
+                boxId = labelPackage.selectedPackage!!.id,
+                length = labelPackage.selectedPackage.dimensions.length,
+                width = labelPackage.selectedPackage.dimensions.width,
+                height = labelPackage.selectedPackage.dimensions.height,
+                weight = labelPackage.weight,
+                shipmentId = rate.shipmentId,
+                rateId = rate.rateId,
+                serviceId = rate.serviceId,
+                serviceName = rate.serviceName,
+                carrierId = rate.carrierId,
+                products = labelPackage.items.map { it.productId }
+            )
+        }
+        // Retrieve account settings, normally they should be cached at this point, and the response would be
+        // instantaneous
+        // We fallback to true as it's the default value in the plugin
+        val emailReceipts = getAccountSettings().model?.isEmailReceiptEnabled ?: true
+
+        return shippingLabelStore.purchaseShippingLabels(
+            site = selectedSite.get(),
+            orderId = orderId,
+            origin = origin.toShippingLabelModel(),
+            destination = destination.toShippingLabelModel(),
+            packagesData = packagesData,
+            customsData = customsPackages?.map { it.toDataModel() },
+            emailReceipts = emailReceipts
+        ).let { result ->
+            when {
+                result.isError -> WooResult(result.error)
+                result.model != null -> WooResult(result.model!!.map { it.toAppModel() })
+                else -> WooResult(WooError(GENERIC_ERROR, UNKNOWN))
+            }
         }
     }
 

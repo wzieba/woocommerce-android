@@ -6,6 +6,7 @@ import com.woocommerce.android.extensions.fastStripHtml
 import com.woocommerce.android.extensions.roundError
 import com.woocommerce.android.model.Order.Item
 import com.woocommerce.android.model.Order.OrderStatus
+import com.woocommerce.android.model.Order.ShippingLine
 import com.woocommerce.android.model.Order.ShippingMethod
 import com.woocommerce.android.model.Order.Status
 import com.woocommerce.android.model.Order.Status.OnHold
@@ -13,8 +14,8 @@ import com.woocommerce.android.model.Order.Status.Pending
 import com.woocommerce.android.ui.products.ProductHelper
 import com.woocommerce.android.util.AddressUtils
 import com.woocommerce.android.util.StringUtils
-import kotlinx.android.parcel.IgnoredOnParcel
-import kotlinx.android.parcel.Parcelize
+import kotlinx.parcelize.IgnoredOnParcel
+import kotlinx.parcelize.Parcelize
 import org.wordpress.android.fluxc.model.WCOrderModel
 import org.wordpress.android.fluxc.model.WCOrderStatusModel
 import org.wordpress.android.fluxc.model.order.OrderIdentifier
@@ -53,7 +54,9 @@ data class Order(
     val billingAddress: Address,
     val shippingAddress: Address,
     val shippingMethods: List<ShippingMethod>,
-    val items: List<Item>
+    val items: List<Item>,
+    val shippingLines: List<ShippingLine>,
+    val metaData: List<MetaData<String>>
 ) : Parcelable {
     @IgnoredOnParcel
     val isOrderPaid = paymentMethodTitle.isEmpty() && datePaid == null
@@ -97,7 +100,18 @@ data class Order(
     ) : Parcelable {
         @IgnoredOnParcel
         val uniqueId: Long = ProductHelper.productOrVariationId(productId, variationId)
+        @IgnoredOnParcel
+        val isVariation: Boolean = variationId != 0L
     }
+
+    @Parcelize
+    data class ShippingLine(
+        val itemId: Long,
+        val methodId: String,
+        val methodTitle: String,
+        val totalTax: BigDecimal,
+        val total: BigDecimal
+    ) : Parcelable
 
     fun getBillingName(defaultValue: String): String {
         return when {
@@ -124,6 +138,8 @@ data class Order(
             shippingName, shippingAddress, shippingCountry
         )
     }
+
+    fun getProductIds() = items.map { it.productId }
 
     sealed class Status(val value: String) : Parcelable {
         companion object {
@@ -255,7 +271,17 @@ fun WCOrderModel.toAppModel(): Order {
                                 it.variationId ?: 0,
                                 it.getAttributesAsString()
                         )
-                    }
+                    },
+            shippingLines = getShippingLineList().map {
+                ShippingLine(
+                    it.id!!,
+                    it.methodId ?: StringUtils.EMPTY,
+                    it.methodTitle ?: StringUtils.EMPTY,
+                    it.totalTax?.toBigDecimalOrNull()?.roundError() ?: BigDecimal.ZERO,
+                    it.total?.toBigDecimalOrNull()?.roundError() ?: BigDecimal.ZERO
+                )
+            },
+            metaData = getMetaDataList().mapNotNull { it.toAppModel() }
     )
 }
 

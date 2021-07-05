@@ -28,9 +28,10 @@ import com.woocommerce.android.ui.products.ProductDetailFragmentDirections
 import com.woocommerce.android.ui.wpmediapicker.WPMediaGalleryView.WPMediaGalleryListener
 import com.woocommerce.android.viewmodel.MultiLiveEvent.Event.Exit
 import com.woocommerce.android.viewmodel.MultiLiveEvent.Event.ShowSnackbar
-import com.woocommerce.android.viewmodel.ViewModelFactory
+import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
+@AndroidEntryPoint
 class WPMediaPickerFragment : BaseFragment(R.layout.fragment_wpmedia_picker),
     WPMediaGalleryListener,
     BackPressListener {
@@ -39,10 +40,9 @@ class WPMediaPickerFragment : BaseFragment(R.layout.fragment_wpmedia_picker),
         const val KEY_WP_IMAGE_PICKER_RESULT = "key_wp_image_picker_result"
     }
 
-    @Inject lateinit var viewModelFactory: ViewModelFactory
     @Inject lateinit var uiMessageResolver: UIMessageResolver
 
-    private val viewModel: WPMediaPickerViewModel by viewModels { viewModelFactory }
+    private val viewModel: WPMediaPickerViewModel by viewModels()
     private val isMultiSelectAllowed: Boolean
         get() = viewModel.viewStateLiveData.liveData.value?.isMultiSelectionAllowed ?: true
 

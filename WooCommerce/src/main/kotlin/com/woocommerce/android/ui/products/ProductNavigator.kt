@@ -15,10 +15,12 @@ import com.woocommerce.android.ui.products.ProductNavigationTarget.AddProductAtt
 import com.woocommerce.android.ui.products.ProductNavigationTarget.AddProductCategory
 import com.woocommerce.android.ui.products.ProductNavigationTarget.AddProductDownloadableFile
 import com.woocommerce.android.ui.products.ProductNavigationTarget.ExitProduct
+import com.woocommerce.android.ui.products.ProductNavigationTarget.RenameProductAttribute
 import com.woocommerce.android.ui.products.ProductNavigationTarget.ShareProduct
 import com.woocommerce.android.ui.products.ProductNavigationTarget.ViewGroupedProducts
 import com.woocommerce.android.ui.products.ProductNavigationTarget.ViewLinkedProducts
 import com.woocommerce.android.ui.products.ProductNavigationTarget.ViewProductAdd
+import com.woocommerce.android.ui.products.ProductNavigationTarget.ViewProductAttributes
 import com.woocommerce.android.ui.products.ProductNavigationTarget.ViewProductCatalogVisibility
 import com.woocommerce.android.ui.products.ProductNavigationTarget.ViewProductCategories
 import com.woocommerce.android.ui.products.ProductNavigationTarget.ViewProductDescriptionEditor
@@ -46,6 +48,7 @@ import com.woocommerce.android.ui.products.ProductNavigationTarget.ViewProductVi
 import com.woocommerce.android.ui.products.categories.ProductCategoriesFragmentDirections
 import com.woocommerce.android.ui.products.downloads.ProductDownloadsFragmentDirections
 import com.woocommerce.android.ui.products.settings.ProductSettingsFragmentDirections
+import com.woocommerce.android.ui.products.variations.attributes.AddAttributeTermsFragmentDirections
 import com.woocommerce.android.ui.products.variations.attributes.AttributeListFragmentDirections
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -74,8 +77,16 @@ class ProductNavigator @Inject constructor() {
 
             is ViewProductVariations -> {
                 val action = ProductDetailFragmentDirections
-                        .actionProductDetailFragmentToVariationListFragment(target.remoteId)
+                        .actionProductDetailFragmentToVariationListFragment(
+                            target.remoteId
+                        )
                 fragment.findNavController().navigateSafely(action)
+            }
+
+            is ViewProductAttributes -> {
+                ProductDetailFragmentDirections
+                    .actionProductDetailFragmentToAttributeListFragment()
+                    .apply { fragment.findNavController().navigateSafely(this) }
             }
 
             is ViewProductDescriptionEditor -> {
@@ -283,14 +294,29 @@ class ProductNavigator @Inject constructor() {
             }
 
             is AddProductAttribute -> {
-                val action = AttributeListFragmentDirections.actionAttributeListFragmentToAddAttributeFragment()
+                when (target.isVariationCreation) {
+                    true -> ProductDetailFragmentDirections
+                        .actionProductDetailFragmentToAddAttributeFragment(isVariationCreation = true)
+                        .run { fragment.findNavController().navigate(this) }
+
+                    else -> AttributeListFragmentDirections
+                        .actionAttributeListFragmentToAddAttributeFragment()
+                        .run { fragment.findNavController().navigate(this) }
+                }
+            }
+
+            is RenameProductAttribute -> {
+                val action = AddAttributeTermsFragmentDirections
+                    .actionAttributeTermsFragmentToRenameAttributeFragment(target.attributeName)
                 fragment.findNavController().navigate(action)
             }
 
             is AddProductAttributeTerms -> {
                 val action = NavGraphProductsDirections.actionGlobalAddVariationAttributeTermsFragment(
                     target.attributeId,
-                    target.attributeName
+                    target.attributeName,
+                    target.isNewAttribute,
+                    target.isVariationCreation
                 )
                 fragment.findNavController().navigate(action)
             }

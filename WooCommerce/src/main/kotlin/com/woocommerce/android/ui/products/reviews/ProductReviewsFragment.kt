@@ -20,17 +20,17 @@ import com.woocommerce.android.ui.main.MainNavigationRouter
 import com.woocommerce.android.ui.reviews.ReviewListAdapter
 import com.woocommerce.android.util.ChromeCustomTabUtils
 import com.woocommerce.android.viewmodel.MultiLiveEvent.Event.ShowSnackbar
-import com.woocommerce.android.viewmodel.ViewModelFactory
 import com.woocommerce.android.widgets.SkeletonView
 import com.woocommerce.android.widgets.WCEmptyView.EmptyViewType
+import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
+@AndroidEntryPoint
 class ProductReviewsFragment : BaseFragment(R.layout.fragment_reviews_list),
     ReviewListAdapter.OnReviewClickListener {
     @Inject lateinit var uiMessageResolver: UIMessageResolver
 
-    @Inject lateinit var viewModelFactory: ViewModelFactory
-    val viewModel: ProductReviewsViewModel by viewModels { viewModelFactory }
+    val viewModel: ProductReviewsViewModel by viewModels()
 
     private lateinit var reviewsAdapter: ReviewListAdapter
 

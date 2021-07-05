@@ -1,6 +1,5 @@
 package com.woocommerce.android.ui.orders.list
 
-import android.content.Context
 import android.os.Bundle
 import android.os.Handler
 import android.view.Menu
@@ -35,9 +34,8 @@ import com.woocommerce.android.util.ChromeCustomTabUtils
 import com.woocommerce.android.util.CurrencyFormatter
 import com.woocommerce.android.util.StringUtils
 import com.woocommerce.android.util.WooAnimUtils
-import com.woocommerce.android.viewmodel.ViewModelFactory
 import com.woocommerce.android.widgets.WCEmptyView.EmptyViewType
-import dagger.android.support.AndroidSupportInjection
+import dagger.hilt.android.AndroidEntryPoint
 import org.wordpress.android.fluxc.model.WCOrderStatusModel
 import org.wordpress.android.fluxc.network.rest.wpcom.wc.order.CoreOrderStatus.PROCESSING
 import org.wordpress.android.login.util.getColorFromAttribute
@@ -46,6 +44,7 @@ import java.util.Locale
 import javax.inject.Inject
 import org.wordpress.android.util.ActivityUtils as WPActivityUtils
 
+@AndroidEntryPoint
 class OrderListFragment : TopLevelFragment(R.layout.fragment_order_list),
     OrderStatusListView.OrderStatusListListener,
     OnQueryTextListener, OnActionExpandListener,
@@ -63,14 +62,11 @@ class OrderListFragment : TopLevelFragment(R.layout.fragment_order_list),
         private const val TAB_INDEX_ALL = 1
     }
 
-    @Inject internal lateinit var viewModelFactory: ViewModelFactory
     @Inject internal lateinit var uiMessageResolver: UIMessageResolver
     @Inject internal lateinit var selectedSite: SelectedSite
     @Inject internal lateinit var currencyFormatter: CurrencyFormatter
 
-    override var binding: FragmentOrderListBinding? = null
-
-    private val viewModel: OrderListViewModel by viewModels { viewModelFactory }
+    private val viewModel: OrderListViewModel by viewModels()
 
     // Alias for interacting with [viewModel.orderStatusFilter] so the value is always
     // identical to the real value on the UI side.
@@ -113,11 +109,6 @@ class OrderListFragment : TopLevelFragment(R.layout.fragment_order_list),
 
     private val emptyView
         get() = requireBinding().orderListView.emptyView
-
-    override fun onAttach(context: Context) {
-        AndroidSupportInjection.inject(this)
-        super.onAttach(context)
-    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -383,11 +374,7 @@ class OrderListFragment : TopLevelFragment(R.layout.fragment_order_list),
     }
 
     private fun updatePagedListData(pagedListData: PagedList<OrderListItemUIType>?) {
-        requireBinding().orderListView.submitPagedList(pagedListData)
-
-        if (pagedListData?.size != 0 && isSearching) {
-            WPActivityUtils.hideKeyboard(activity)
-        }
+        binding.orderListView.submitPagedList(pagedListData)
     }
 
     /**

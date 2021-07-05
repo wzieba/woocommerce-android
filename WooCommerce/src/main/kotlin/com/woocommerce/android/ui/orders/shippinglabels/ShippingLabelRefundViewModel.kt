@@ -1,30 +1,31 @@
 package com.woocommerce.android.ui.orders.shippinglabels
 
 import android.os.Parcelable
-import com.squareup.inject.assisted.Assisted
-import com.squareup.inject.assisted.AssistedInject
+import androidx.lifecycle.SavedStateHandle
 import com.woocommerce.android.R.string
 import com.woocommerce.android.analytics.AnalyticsTracker
 import com.woocommerce.android.analytics.AnalyticsTracker.Stat
-import com.woocommerce.android.di.ViewModelAssistedFactory
 import com.woocommerce.android.model.ShippingLabel
 import com.woocommerce.android.tools.NetworkStatus
-import com.woocommerce.android.util.CoroutineDispatchers
 import com.woocommerce.android.viewmodel.LiveDataDelegate
 import com.woocommerce.android.viewmodel.MultiLiveEvent.Event.Exit
 import com.woocommerce.android.viewmodel.MultiLiveEvent.Event.ShowSnackbar
-import com.woocommerce.android.viewmodel.SavedStateWithArgs
 import com.woocommerce.android.viewmodel.ScopedViewModel
-import kotlinx.android.parcel.Parcelize
+import com.woocommerce.android.viewmodel.navArgs
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import kotlinx.parcelize.IgnoredOnParcel
+import kotlinx.parcelize.Parcelize
+import java.util.Date
+import javax.inject.Inject
 
-class ShippingLabelRefundViewModel @AssistedInject constructor(
-    @Assisted savedState: SavedStateWithArgs,
+@HiltViewModel
+class ShippingLabelRefundViewModel @Inject constructor(
+    savedState: SavedStateHandle,
     private val repository: ShippingLabelRepository,
-    private val networkStatus: NetworkStatus,
-    dispatchers: CoroutineDispatchers
-) : ScopedViewModel(savedState, dispatchers) {
+    private val networkStatus: NetworkStatus
+) : ScopedViewModel(savedState) {
     private var refundJob: Job? = null
     val isRefundInProgress: Boolean
         get() = refundJob?.isActive ?: false
@@ -68,8 +69,10 @@ class ShippingLabelRefundViewModel @AssistedInject constructor(
     @Parcelize
     data class ShippingLabelRefundViewState(
         val shippingLabel: ShippingLabel? = null
-    ) : Parcelable
-
-    @AssistedInject.Factory
-    interface Factory : ViewModelAssistedFactory<ShippingLabelRefundViewModel>
+    ) : Parcelable {
+        @IgnoredOnParcel
+        val isRefundExpired: Boolean
+            get() = shippingLabel?.isAnonymized == true ||
+                shippingLabel?.refundExpiryDate?.let { Date().after(it) } ?: false
+    }
 }

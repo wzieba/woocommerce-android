@@ -3,31 +3,30 @@ package com.woocommerce.android.ui.products.downloads
 import android.content.DialogInterface
 import android.os.Parcelable
 import androidx.core.util.PatternsCompat
-import com.squareup.inject.assisted.Assisted
-import com.squareup.inject.assisted.AssistedInject
+import androidx.lifecycle.SavedStateHandle
 import com.woocommerce.android.R
-import com.woocommerce.android.di.ViewModelAssistedFactory
 import com.woocommerce.android.model.ProductFile
 import com.woocommerce.android.ui.products.downloads.ProductDownloadDetailsViewModel.ProductDownloadDetailsEvent.AddFileAndExitEvent
 import com.woocommerce.android.ui.products.downloads.ProductDownloadDetailsViewModel.ProductDownloadDetailsEvent.DeleteFileEvent
 import com.woocommerce.android.ui.products.downloads.ProductDownloadDetailsViewModel.ProductDownloadDetailsEvent.UpdateFileAndExitEvent
-import com.woocommerce.android.util.CoroutineDispatchers
 import com.woocommerce.android.viewmodel.LiveDataDelegate
 import com.woocommerce.android.viewmodel.MultiLiveEvent.Event
 import com.woocommerce.android.viewmodel.MultiLiveEvent.Event.Exit
 import com.woocommerce.android.viewmodel.MultiLiveEvent.Event.ShowDialog
 import com.woocommerce.android.viewmodel.ResourceProvider
-import com.woocommerce.android.viewmodel.SavedStateWithArgs
 import com.woocommerce.android.viewmodel.ScopedViewModel
-import kotlinx.android.parcel.Parcelize
+import com.woocommerce.android.viewmodel.navArgs
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.parcelize.Parcelize
 import java.net.URI
 import java.net.URISyntaxException
+import javax.inject.Inject
 
-class ProductDownloadDetailsViewModel @AssistedInject constructor(
-    @Assisted savedState: SavedStateWithArgs,
-    dispatchers: CoroutineDispatchers,
+@HiltViewModel
+class ProductDownloadDetailsViewModel @Inject constructor(
+    savedState: SavedStateHandle,
     private val resourceProvider: ResourceProvider
-) : ScopedViewModel(savedState, dispatchers) {
+) : ScopedViewModel(savedState) {
     private val navArgs: ProductDownloadDetailsFragmentArgs by savedState.navArgs()
 
     val productDownloadDetailsViewStateData = LiveDataDelegate(
@@ -145,7 +144,4 @@ class ProductDownloadDetailsViewModel @AssistedInject constructor(
         val urlErrorMessage: Int? = null,
         val nameErrorMessage: Int? = null
     ) : Parcelable
-
-    @AssistedInject.Factory
-    interface Factory : ViewModelAssistedFactory<ProductDownloadDetailsViewModel>
 }
