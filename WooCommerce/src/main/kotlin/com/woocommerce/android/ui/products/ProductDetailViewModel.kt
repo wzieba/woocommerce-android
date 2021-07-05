@@ -360,15 +360,21 @@ class ProductDetailViewModel @Inject constructor(
         updateProductBeforeEnteringFragment()
     }
 
+    /**
+     * Called during the Add _first_ Variation flow. Uploads the pending attribute changes and generates the first
+     * variation for the variable product.
+     */
     fun onAttributeListDoneButtonClicked() {
         saveAttributeChanges()
         attributeListViewState = attributeListViewState.copy(isCreatingVariationDialogShown = true)
         launch {
             viewState.productDraft?.let { draft ->
                 variationRepository.createEmptyVariation(draft)
-                    ?.let { updateProductDraft(numVariation = draft.numVariations + 1) }
-                    ?.let { triggerEvent(ExitProductAttributeList(variationCreated = true)) }
-                    ?: triggerEvent(ExitProductAttributeList())
+                    ?.let {
+                        productRepository.fetchProduct(draft.remoteId)
+                                ?.also { updateProductState(productToUpdateFrom = it) }
+                        triggerEvent(ExitProductAttributeList(variationCreated = true))
+                    } ?: triggerEvent(ExitProductAttributeList())
             }.also {
                 attributeListViewState = attributeListViewState.copy(isCreatingVariationDialogShown = false)
             }
@@ -568,8 +574,7 @@ class ProductDetailViewModel @Inject constructor(
             val neutralAction = if (isProductUnderCreation) {
                 neutralBtnId = string.product_detail_save_as_draft
                 DialogInterface.OnClickListener { _, _ ->
-                    updateProductDraft(productStatus = DRAFT)
-                    startPublishProduct(exitWhenDone = true)
+                    startPublishProduct(productStatus = DRAFT, exitWhenDone = true)
                 }
             } else {
                 neutralBtnId = null
@@ -614,8 +619,7 @@ class ProductDetailViewModel @Inject constructor(
      * Called when the "Save as draft" button is clicked in Product detail screen
      */
     fun onSaveAsDraftButtonClicked() {
-        updateProductDraft(productStatus = DRAFT)
-        startPublishProduct()
+        startPublishProduct(productStatus = DRAFT)
     }
 
     /**
@@ -654,8 +658,8 @@ class ProductDetailViewModel @Inject constructor(
         }
     }
 
-    private fun startPublishProduct(exitWhenDone: Boolean = false) {
-        updateProductDraft(productStatus = PUBLISH)
+    private fun startPublishProduct(productStatus: ProductStatus = PUBLISH, exitWhenDone: Boolean = false) {
+        updateProductDraft(productStatus = productStatus)
 
         viewState.productDraft?.let {
             trackPublishing(it)
