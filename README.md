@@ -1,5 +1,7 @@
 [![CircleCI](https://circleci.com/gh/woocommerce/woocommerce-ios.svg?style=svg)](https://circleci.com/gh/woocommerce/woocommerce-android)
 
+Test
+
 # WooCommerce for Android
 
 Jetpack-powered WooCommerce Android app codenamed Dervish. If you're just looking to install WooCommerce for Android, you can find
