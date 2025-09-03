@@ -24,13 +24,8 @@ jobs:
         with:
           github-token: "${{ secrets.GITHUB_TOKEN }}"
 
-      - name: Exit if no Dependabot metadata found
-        if: steps.metadata.outputs.update-type != 'version-update:semver-patch'
-        run: |
-          echo "The update is not PATCH. Exiting."
-          exit 0
-
       - name: Assign closest open milestone to PR
+        if: steps.metadata.outputs.update-type == 'version-update:semver-patch'
         run: |
           set -e
           number=$(gh api repos/$GITHUB_REPOSITORY/milestones \
@@ -48,7 +43,9 @@ jobs:
           fi
 
       - name: Approve the PR
+        if: steps.metadata.outputs.update-type == 'version-update:semver-patch'
         run: gh pr review --approve "$PR_URL"
 
       - name: Enable auto-merge for Dependabot PRs
+        if: steps.metadata.outputs.update-type == 'version-update:semver-patch'
         run: gh pr merge --auto --merge "$PR_URL"
